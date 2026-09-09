@@ -49,11 +49,15 @@ const relation_type = (value: string) => {
     return supported_relations.has(mapped) ? mapped : 'refers_to';
 };
 
-async function benchmark_migration(path: string, imported_node_ids: string[]): Promise<migration_benchmark_result> {
+async function benchmark_migration(
+    path: string,
+    imported_node_ids: string[],
+    memory_config?: Omit<memory_config, 'store' | 'db_path' | 'readonly'>,
+): Promise<migration_benchmark_result> {
     const store = new SqliteStore(path, { startup_integrity_check: true });
     const integrity = store.check_integrity();
     store.close();
-    const memory = create_memory({ store: 'sqlite', db_path: path });
+    const memory = create_memory({ ...memory_config, store: 'sqlite', db_path: path, readonly: true });
     try {
         const stats = await memory.getStats();
         const hydration = imported_node_ids.length === 0 || (await memory.explain(imported_node_ids[0])).node !== null;
@@ -68,10 +72,15 @@ async function benchmark_migration(path: string, imported_node_ids: string[]): P
     }
 }
 
-async function copy_hydrograph(from: string, to: string, started_at: number): Promise<migration_report> {
+async function copy_hydrograph(
+    from: string,
+    to: string,
+    started_at: number,
+    memory_config?: Omit<memory_config, 'store' | 'db_path' | 'readonly'>,
+): Promise<migration_report> {
     const source = new Database(from, { readonly: true, fileMustExist: true });
     try { await source.backup(to); } finally { source.close(); }
-    const memory = create_memory({ store: 'sqlite', db_path: to });
+    const memory = create_memory({ ...memory_config, store: 'sqlite', db_path: to, readonly: true });
     const stats = await memory.getStats();
     await memory.close();
     const store = new SqliteStore(to);
@@ -98,7 +107,7 @@ async function copy_hydrograph(from: string, to: string, started_at: number): Pr
         contradictions_found: 0,
         skipped_records: [],
         errors: [],
-        benchmark_result: await benchmark_migration(to, node_ids),
+        benchmark_result: await benchmark_migration(to, node_ids, memory_config),
     };
 }
 
@@ -111,7 +120,7 @@ export async function migrate_legacy(options: legacy_migration_options): Promise
     if (existsSync(to) && !options.overwrite) throw new Error(`migration destination already exists: ${to}`);
     mkdirSync(dirname(to), { recursive: true });
     const read = read_legacy_source(from);
-    if (read.format === 'hydrograph') return copy_hydrograph(from, to, started_at);
+    if (read.format === 'hydrograph') return copy_hydrograph(from, to, started_at, options.memory_config);
     const clean = clean_legacy_data(read);
     const imported_node_ids = new Set<string>();
     const imported_edge_ids = new Set<string>();
@@ -209,7 +218,7 @@ export async function migrate_legacy(options: legacy_migration_options): Promise
         contradictions_found,
         skipped_records: skipped,
         errors,
-        benchmark_result: await benchmark_migration(to, [...imported_node_ids]),
+        benchmark_result: await benchmark_migration(to, [...imported_node_ids], options.memory_config),
     };
     return report;
 }
