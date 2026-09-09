@@ -16,7 +16,7 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import Database from 'better-sqlite3';
-import { create_memory } from '../create_memory.js';
+import { create_memory, type memory_config } from '../create_memory.js';
 import { create_hydro_edge } from '../memory/durable_graph.js';
 import { manual_provenance } from '../types/provenance.js';
 import { SqliteStore } from '../../stores/sqlite/sqlite_store.js';
@@ -28,6 +28,7 @@ export type legacy_migration_options = {
     from: string;
     to: string;
     overwrite?: boolean;
+    memory_config?: Omit<memory_config, 'store' | 'db_path' | 'readonly'>;
 };
 
 const supported_relations = new Set(['contains', 'refers_to', 'same_as', 'supports', 'contradicts', 'supersedes', 'derived_from', 'grounds', 'semantic_shift']);
@@ -120,7 +121,7 @@ export async function migrate_legacy(options: legacy_migration_options): Promise
     const skipped = [...clean.skipped];
     const errors = [...clean.errors];
     let contradictions_found = 0;
-    const memory = create_memory({ store: 'sqlite', db_path: to, enable_consolidation: true });
+    const memory = create_memory({ ...options.memory_config, store: 'sqlite', db_path: to, enable_consolidation: true });
     try {
         for (const item of clean.records) {
             try {
