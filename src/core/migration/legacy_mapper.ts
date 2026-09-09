@@ -18,6 +18,7 @@ import { dirname, resolve } from 'node:path';
 import Database from 'better-sqlite3';
 import { create_memory, type memory_config } from '../create_memory.js';
 import { create_hydro_edge } from '../memory/durable_graph.js';
+import { project_memory } from '../project/project_memory.js';
 import { manual_provenance } from '../types/provenance.js';
 import { SqliteStore } from '../../stores/sqlite/sqlite_store.js';
 import { clean_legacy_data } from './legacy_cleaner.js';
@@ -132,6 +133,12 @@ export async function migrate_legacy(options: legacy_migration_options): Promise
     let contradictions_found = 0;
     const memory = create_memory({ ...options.memory_config, store: 'sqlite', db_path: to, enable_consolidation: true });
     try {
+        const projects = new project_memory({ memory, tenant_id: 'default', project_id: 'legacy-migration', name: 'Legacy migration' });
+        const document_worlds = new Map<string, string>();
+        for (const project_id of new Set(clean.records.map((item) => item.world))) {
+            const project = await projects.createProject({ tenant_id: 'default', project_id, name: project_id });
+            document_worlds.set(project_id, project.world_ids.documents);
+        }
         for (const item of clean.records) {
             try {
                 const result = await memory.ingest({
@@ -142,13 +149,13 @@ export async function migrate_legacy(options: legacy_migration_options): Promise
                     observed_at: item.observed_at,
                     valid_from: item.valid_from,
                     valid_to: item.valid_to,
-                    world: item.world,
+                    world_id: document_worlds.get(item.world),
                     tags: item.tags,
                     facet_hint: item.facet,
                     external: item.source !== null,
                     source: item.source ?? undefined,
                     contract: item.source ? undefined : { requires_grounding: false, source_required: false },
-                    metadata: item.metadata,
+                    metadata: { ...item.metadata, project_id: item.world, canonical_project: item.world },
                 });
                 node_by_source.set(item.source_id, result.node.id);
                 result.diff.created_node_ids.forEach((id) => imported_node_ids.add(id));
