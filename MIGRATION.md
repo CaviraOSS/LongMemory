@@ -24,7 +24,19 @@ The package, CLI, environment prefix, extension namespace, routes, and integrati
 - dashboard proxy: `/api/longmemory`
 - repository: `https://github.com/CaviraOSS/LongMemory`
 
-Compatibility aliases for the previous product name are intentionally not shipped.
+Application identifiers do not retain runtime aliases; registry migration is handled by temporary compatibility packages.
+
+Package registry migration uses temporary compatibility bridges:
+
+```bash
+npm uninstall openmemory-js
+npm install longmemory
+
+pip uninstall openmemory-py
+pip install longmemory-sdk
+```
+
+The npm bridge re-exports `longmemory` and forwards the legacy CLI names. The PyPI bridge depends on `longmemory-sdk` and forwards the legacy Python import namespace. The unrelated `longmemory` distribution on PyPI is not part of CaviraOSS.
 
 ## Import legacy memory data
 

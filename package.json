@@ -58,6 +58,7 @@
         "extension:build": "pnpm --dir apps/vscode-extension compile",
         "extension:package": "pnpm --dir apps/vscode-extension package",
         "dashboard:audit": "npm --prefix dashboard audit --audit-level=moderate",
+        "sdk:python:check": "node tools/check-python-sdk.mjs",
         "integration:n8n:lint": "pnpm --dir integrations/n8n-nodes-longmemory lint",
         "integration:n8n:build": "pnpm --dir integrations/n8n-nodes-longmemory build",
         "integration:claude:validate": "claude plugin validate ./integrations/claude-code-longmemory --strict",
@@ -66,7 +67,7 @@
         "branding:apply": "node tools/branding.mjs --apply",
         "branding:check": "node tools/branding.mjs",
         "typecheck": "tsc --noEmit -p tsconfig.json",
-        "release:check": "pnpm branding:check && pnpm release:files && pnpm dashboard:audit && pnpm typecheck && pnpm extension:check && pnpm integration:check && pnpm bench:typecheck && pnpm bench:ci && pnpm build && pnpm extension:build && npm --prefix dashboard run build"
+        "release:check": "pnpm branding:check && pnpm release:files && pnpm sdk:python:check && pnpm dashboard:audit && pnpm typecheck && pnpm extension:check && pnpm integration:check && pnpm bench:typecheck && pnpm bench:ci && pnpm build && pnpm extension:build && npm --prefix dashboard run build"
     },
     "devDependencies": {
         "@types/better-sqlite3": "^7.6.13",

@@ -17,11 +17,12 @@
 > **Durable, temporal, governed memory for AI agents. Not just RAG. Not just a vector database. Local-first and self-hosted.**
 
 [![npm](https://img.shields.io/npm/v/longmemory.svg)](https://www.npmjs.com/package/longmemory)
+[![PyPI](https://img.shields.io/pypi/v/longmemory-sdk.svg)](https://pypi.org/project/longmemory-sdk/)
 [![VS Code](https://img.shields.io/badge/VS%20Code-LongMemory-007ACC?logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=CaviraOSS.longmemory-vscode)
 [![Container](https://img.shields.io/badge/GHCR-longmemory-2496ED?logo=docker)](https://github.com/CaviraOSS/LongMemory/pkgs/container/longmemory)
 [![License](https://img.shields.io/github/license/CaviraOSS/LongMemory)](LICENSE)
 
-![LongMemory dashboard](.github/longmemory.png)
+![LongMemory dashboard](.github/longmemory.gif)
 
 LongMemory is a cognitive memory engine for LLM applications and autonomous agents.
 
@@ -85,6 +86,27 @@ npm install --global longmemory
 longmemory init
 longmemory recall "current project priorities" --mode associative
 ```
+
+### Call a self-hosted server from Python
+
+```bash
+pip install longmemory-sdk
+```
+
+```python
+from longmemory import LongMemory
+
+memory = LongMemory(
+    "http://127.0.0.1:7331",
+    api_key="change-me",
+    user_id="alice",
+)
+
+memory.ingest("I prefer TypeScript")
+result = memory.recall("What language do I prefer?", mode="strict")
+```
+
+The Python package is a zero-dependency HTTP client. The Hydrograph engine remains in the self-hosted TypeScript service. See [docs/python-sdk.md](docs/python-sdk.md).
 
 ---
 
@@ -374,6 +396,15 @@ longmemory port --from codex --to longmemory --all
 ```
 
 See [MIGRATION.md](MIGRATION.md) and [docs/migration.md](docs/migration.md).
+
+Legacy package migration:
+
+```bash
+npm uninstall openmemory-js && npm install longmemory
+pip uninstall openmemory-py && pip install longmemory-sdk
+```
+
+`openmemory-js@2` and `openmemory-py@2` are forwarding bridges for existing installations. New applications should use `longmemory` and `longmemory-sdk` directly. PyPI's unrelated `longmemory` name is owned by another project, so the official distribution is `longmemory-sdk` while the import remains `longmemory`.
 
 ---
 

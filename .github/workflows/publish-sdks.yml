@@ -58,6 +58,60 @@ jobs:
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+    npm-legacy-bridge:
+        needs: [validate, npm]
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  registry-url: https://registry.npmjs.org
+            - run: npm publish ./packages/openmemory-js --access public --provenance
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+            - run: npm deprecate "openmemory-js@<2.0.0" "Package renamed to longmemory. Install longmemory instead."
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+    pypi-longmemory-sdk:
+        needs: validate
+        runs-on: ubuntu-latest
+        environment:
+            name: pypi-longmemory-sdk
+            url: https://pypi.org/p/longmemory-sdk
+        permissions:
+            id-token: write
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: '3.13'
+            - run: python -m pip install build
+            - run: python -m build packages/longmemory-py
+            - uses: pypa/gh-action-pypi-publish@release/v1
+              with:
+                  packages-dir: packages/longmemory-py/dist
+
+    pypi-legacy-bridge:
+        needs: [validate, pypi-longmemory-sdk]
+        runs-on: ubuntu-latest
+        environment:
+            name: pypi-openmemory-py
+            url: https://pypi.org/p/openmemory-py
+        permissions:
+            id-token: write
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: '3.13'
+            - run: python -m pip install build
+            - run: python -m build packages/openmemory-py
+            - uses: pypa/gh-action-pypi-publish@release/v1
+              with:
+                  packages-dir: packages/openmemory-py/dist
+
     n8n:
         needs: validate
         runs-on: ubuntu-latest
