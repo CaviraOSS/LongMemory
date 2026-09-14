@@ -759,8 +759,8 @@ validator.
                 </a>
             </td>
             <td align="center">
-                <a href="https://github.com/Anush008">
-                    <img src="https://avatars.githubusercontent.com/u/46051506?v=4" width="100;" alt="Anush008"/>
+                <a href="https://github.com/anush008">
+                    <img src="https://avatars.githubusercontent.com/u/46051506?v=4" width="100;" alt="anush008"/>
                     <br />
                     <sub><b>Anush</b></sub>
                 </a>
