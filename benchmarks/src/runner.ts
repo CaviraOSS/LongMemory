@@ -24,6 +24,7 @@ import { benchmark_defaults, provider_config_from_env } from "./config";
 import { load_datasets as load_benchmark_datasets } from "./datasets";
 import { count_tokens, match_hits, score_at_k } from "./metrics";
 import { create_provider } from "./providers";
+import { benchmark_embedding_error } from './providers/longmemory';
 import { build_report, type provider_outcome } from "./report";
 import { load_embedding_environment } from "../../src/core/embeddings/environment.js";
 import type { ai_judge, benchmark_case, benchmark_provider, benchmark_report, dataset_load, dataset_name, language_model, model_config, provider_config, provider_name, run_manifest, search_hit } from "./types";
@@ -80,12 +81,14 @@ const make_manifest = (
     cases: benchmark_case[],
     cutoffs: number[],
     configs: Record<provider_name, provider_config>,
+    loads: dataset_load[],
 ): run_manifest => {
     const cpu_list = cpus();
     const embedding = load_embedding_environment();
     const embedding_model = embedding ? ({
         openai: embedding.openai_model,
         gemini: embedding.gemini_model,
+        nvidia: embedding.nvidia_model ?? 'nvidia/nemotron-3-embed-1b',
         ollama: embedding.ollama_model,
         aws: embedding.aws_model,
         siray: embedding.siray_model,
@@ -123,6 +126,18 @@ const make_manifest = (
             };
         }),
         datasets: options.datasets,
+        retrieval_options: {
+            session_coverage: process.env.LONGMEMORY_SESSION_COVERAGE === '1',
+            evidence_rerank: process.env.LONGMEMORY_EVIDENCE_RERANK !== '0',
+            evidence_rerank_version: 3,
+            calendar_rerank: process.env.LONGMEMORY_CALENDAR_RERANK !== '0',
+            derivation_rerank: process.env.LONGMEMORY_DERIVATION_RERANK !== '0',
+        },
+        dataset_coverage: Object.fromEntries(loads.map((load) => [load.name, {
+            variant: load.variant ?? load.name,
+            selected: load.cases.length,
+            total: load.total_cases ?? (load.name === 'smoke' ? load.cases.length : null),
+        }])),
         case_ids: cases.map((item) => item.id).sort(),
         case_datasets: Object.fromEntries(cases.map((item) => [item.id, item.dataset]).sort(([left], [right]) => left.localeCompare(right))),
         cutoffs,
@@ -135,13 +150,14 @@ const make_manifest = (
             model: embedding_model ?? "unknown",
             tier: embedding.tier,
             dimension: embedding.dimension,
-            fallback: embedding.fallback,
+            fallback: [],
             batch_size: configs.longmemory?.embedding_batch_size ?? (embedding.provider === "ollama" ? 128 : embedding.provider === "gemini" ? 100 : 16),
             inputs_per_minute: embedding.provider === "gemini" ? embedding.gemini_inputs_per_minute : 0,
             input_cost_per_million_usd: embedding_price,
         } : null,
         ai: {
             enabled: Boolean(options.answerer_config && options.judge_config),
+            protocol_version: 2,
             answerer: options.answerer_config ? {
                 provider: options.answerer_config.provider,
                 model: options.answerer_config.model,
@@ -198,7 +214,7 @@ export async function run_benchmark(options: run_options): Promise<run_result> {
             ? { ...config, profile: official_requested ? "semantic" : "synthetic" }
             : config];
     })) as Record<provider_name, provider_config>;
-    const manifest = make_manifest(options, cases, cutoffs, configs);
+    const manifest = make_manifest(options, cases, cutoffs, configs, loads);
     const checkpoint_path = resolve(output_dir, "checkpoint.json");
     const checkpoint = load_checkpoint(checkpoint_path, run_id, manifest, options.resume !== false);
     const datasets_by_case = new Map(cases.map((item) => [item.id, item.dataset]));
@@ -357,6 +373,10 @@ export async function run_benchmark(options: run_options): Promise<run_result> {
                     }
                 } catch (error) {
                     fail_phase(item, active_phase, performance.now() - phase_started, error);
+                    if (error instanceof benchmark_embedding_error) {
+                        save_checkpoint(checkpoint_path, checkpoint);
+                        break;
+                    }
                 }
                 save_checkpoint(checkpoint_path, checkpoint);
             }

@@ -25,17 +25,17 @@ const extract_json = (value: string): Record<string, unknown> => {
 export function parse_judge_response(raw: string): judge_result {
     try {
         const parsed = extract_json(raw);
-        const score = parsed.score === 1 || String(parsed.label).toLowerCase() === "correct" ? 1 : 0;
+        const valid = (parsed.score === 0 || parsed.score === 1)
+            && parsed.label === (parsed.score === 1 ? "correct" : "incorrect");
+        const score = valid && parsed.score === 1 ? 1 : 0;
         return {
             score,
             label: score ? "correct" : "incorrect",
-            explanation: typeof parsed.explanation === "string" ? parsed.explanation : typeof parsed.reasoning === "string" ? parsed.reasoning : "",
+            explanation: !valid ? "invalid or contradictory judge verdict" : typeof parsed.explanation === "string" ? parsed.explanation : typeof parsed.reasoning === "string" ? parsed.reasoning : "",
             raw,
         };
     } catch {
-        const verdicts = raw.toLowerCase().match(/\b(correct|incorrect|yes|no|pass|fail)\b/g) ?? [];
-        const verdict = verdicts.at(-1);
-        const score = verdict === "correct" || verdict === "yes" || verdict === "pass" ? 1 : 0;
+        const score = /^(?:correct|yes|pass)[.!]?$/i.test(raw.trim()) ? 1 : 0;
         return { score, label: score ? "correct" : "incorrect", explanation: "judge response required fallback parsing", raw };
     }
 }

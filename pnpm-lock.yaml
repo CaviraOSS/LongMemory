@@ -35,6 +35,9 @@ importers:
       pdf-parse:
         specifier: ^2.4.5
         version: 2.4.5
+      stemmer:
+        specifier: ^2.0.1
+        version: 2.0.1
       turndown:
         specifier: ^7.2.4
         version: 7.2.4
@@ -3747,6 +3750,10 @@ packages:
   statuses@2.0.2:
     resolution: {integrity: sha512-DvEy55V3DB7uknRo+4iOGT5fP1slR8wQohVdknigZPMpMstaKJQWhwiYBACJE3Ul2pTnATihhBYnRhZQHGBiRw==}
     engines: {node: '>= 0.8'}
+
+  stemmer@2.0.1:
+    resolution: {integrity: sha512-bkWvSX2JR4nSZFfs113kd4C6X13bBBrg4fBKv2pVdzpdQI2LA5pZcWzTFNdkYsiUNl13E4EzymSRjZ0D55jBYg==}
+    hasBin: true
 
   stream-chain@2.2.5:
     resolution: {integrity: sha512-1TJmBx6aSWqZ4tx7aTpBDXK0/e2hhcNSTV8+CbFJtDjbb+I1mZ8lHit0Grw9GRT+6JbIrrDd8esncgBi8aBXGA==}
@@ -8289,6 +8296,8 @@ snapshots:
   stack-trace@0.0.10: {}
 
   statuses@2.0.2: {}
+
+  stemmer@2.0.1: {}
 
   stream-chain@2.2.5: {}
 

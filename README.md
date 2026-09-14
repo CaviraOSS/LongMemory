@@ -66,6 +66,11 @@ await memory.close();
 
 No service or external database is required for in-memory use.
 
+For optional evidence-grounded answers with your own model, use the exported
+`answer_from_evidence` adapter. It accepts authorized evidence, validates cited
+excerpts, and makes at most one model call; ordinary recall is unchanged.
+See [docs/answering.md](docs/answering.md) for policies, limits, and integration.
+
 ### Persist with SQLite
 
 ```ts

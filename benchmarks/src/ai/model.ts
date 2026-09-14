@@ -277,6 +277,7 @@ export class http_language_model implements language_model {
             const args = [
                 "-p", prompt_text(request),
                 "--allow-all-tools",
+                "--available-tools=",
                 "--no-ask-user",
                 "--no-custom-instructions",
                 "--disable-builtin-mcps",

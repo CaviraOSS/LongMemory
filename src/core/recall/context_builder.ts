@@ -36,20 +36,6 @@ export function count_tokens(text: string): number {
     return Math.max(1, count_multilingual_tokens(t), Math.ceil(code_point_length(t) / 4));
 }
 
-const node_token_cache = new WeakMap<HydroNode, number>();
-
-function render_node(node: HydroNode): string {
-    return node.content.summary || node.content.canonical || node.content.raw;
-}
-
-function node_tokens(node: HydroNode, line: string): number {
-    const cached = node_token_cache.get(node);
-    if (cached !== undefined) return cached;
-    const cost = count_tokens(line);
-    node_token_cache.set(node, cost);
-    return cost;
-}
-
 export type ContextPacket = {
     text: string;
     tokens_used: number;
@@ -74,24 +60,48 @@ export function build_context_packet(
     const items: HydroNode[] = [];
     const evidence: memory_evidence[] = [];
     const lines: string[] = [];
+    const claim_cache = new Map<HydroNode, memory_evidence>();
+    const raw_cache = new Map<HydroNode, memory_evidence>();
+    const render = (node: HydroNode, prefer_raw: boolean): memory_evidence => {
+        const cache = prefer_raw ? raw_cache : claim_cache;
+        const cached = cache.get(node);
+        if (cached) return cached;
+        const value = memory_evidence_of(node, { query_terms: options.query_terms, prefer_raw });
+        cache.set(node, value);
+        return value;
+    };
     let tokens_used = 0;
     let bundled_items = 0;
 
     for (const candidate of scored) {
-        const bundle = options.bundles?.get(candidate.node.id) ?? [];
-        const evidence_text = bundle.length
-            ? [...bundle, candidate.node]
-                .sort((left, right) => left.temporal.observed_at - right.temporal.observed_at)
-                .map((node) => memory_evidence_of(node, { query_terms: options.query_terms, prefer_raw: true }).text)
+        let bundle = [...new Map((options.bundles?.get(candidate.node.id) ?? [])
+            .filter((node) => node.id !== candidate.node.id && node.world.world_id === candidate.node.world.world_id
+                && (node.metadata.user_id ?? node.provenance.created_by) === (candidate.node.metadata.user_id ?? candidate.node.provenance.created_by)
+                && node.metadata.conversation_id === candidate.node.metadata.conversation_id
+                && node.temporal.observed_at <= candidate.node.temporal.observed_at)
+            .map((node) => [node.id, node])).values()];
+        let item_evidence = render(candidate.node, bundle.length > 0);
+        let evidence_items = [...bundle.map((node) => render(node, true)), item_evidence];
+        let evidence_text = bundle.length
+            ? [...evidence_items]
+                .sort((left, right) => left.observed_at - right.observed_at)
+                .map((item) => item.text)
                 .join(' | ')
-            : memory_evidence_of(candidate.node, { query_terms: options.query_terms }).text;
-        const line = bundle.length ? evidence_text : render_node(candidate.node);
-        const cost = bundle.length ? count_tokens(line) : node_tokens(candidate.node, line);
+            : item_evidence.text;
+        let rendered = `- ${evidence_text}`;
+        let cost = count_tokens(rendered) + Number(lines.length > 0);
+        if (tokens_used + cost > budget && bundle.length) {
+            bundle = [];
+            item_evidence = render(candidate.node, false);
+            evidence_items = [item_evidence];
+            evidence_text = item_evidence.text;
+            rendered = `- ${evidence_text}`;
+            cost = count_tokens(rendered) + Number(lines.length > 0);
+        }
         if (tokens_used + cost > budget) continue;
         items.push(candidate.node);
-        const item_evidence = memory_evidence_of(candidate.node, { query_terms: options.query_terms });
-        evidence.push({ ...item_evidence, text: evidence_text });
-        lines.push(`- ${line}`);
+        evidence.push({ ...item_evidence, text: evidence_text, sources: evidence_items.flatMap((item) => item.sources ?? []) });
+        lines.push(rendered);
         tokens_used += cost;
         bundled_items += bundle.length;
     }

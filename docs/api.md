@@ -48,8 +48,8 @@ Successful responses use one envelope:
 
 ```json
 {
-  "data": {},
-  "meta": { "duration_ms": 1.42 }
+    "data": {},
+    "meta": { "duration_ms": 1.42 }
 }
 ```
 
@@ -57,11 +57,11 @@ Every response also includes a `Server-Timing` header. Errors do not expose stac
 
 ```json
 {
-  "error": {
-    "code": "validation_error",
-    "message": "mode is required"
-  },
-  "meta": { "duration_ms": 0.18 }
+    "error": {
+        "code": "validation_error",
+        "message": "mode is required"
+    },
+    "meta": { "duration_ms": 0.18 }
 }
 ```
 
@@ -95,11 +95,11 @@ Content-Type: application/json
 
 ```json
 {
-  "user_id": "u1",
-  "text": "I prefer tea",
-  "at": 1767225600000,
-  "world": "personal",
-  "tags": ["preference"]
+    "user_id": "u1",
+    "text": "I prefer tea",
+    "at": 1767225600000,
+    "world": "personal",
+    "tags": ["preference"]
 }
 ```
 
@@ -118,10 +118,10 @@ Strict recall:
 
 ```json
 {
-  "text": "what do I prefer",
-  "mode": "strict",
-  "now": 1775001600000,
-  "k": 5
+    "text": "what do I prefer",
+    "mode": "strict",
+    "now": 1775001600000,
+    "k": 5
 }
 ```
 
@@ -129,10 +129,10 @@ Historical recall uses the same endpoint:
 
 ```json
 {
-  "text": "what did I prefer",
-  "mode": "historical",
-  "now": 1775001600000,
-  "valid_time": 1767225600001
+    "text": "what did I prefer",
+    "mode": "historical",
+    "now": 1775001600000,
+    "valid_time": 1767225600001
 }
 ```
 
@@ -168,11 +168,3 @@ GET /v1/stats
 ```
 
 Returns store type and counts for nodes, edges, worlds, entities, grounded facts, and working memory, plus cold-log and consolidation status.
-
-## Benchmark
-
-```bash
-pnpm bench -- --only=api-server
-```
-
-The `api-server` suite runs direct and loopback HTTP strict recall against the same engine and reports core p95, HTTP p95, and p95 HTTP transport overhead.

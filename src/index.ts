@@ -38,3 +38,5 @@ export * from './core/i18n/index.js';
 export * from './connectors/index.js';
 export * from './mcp/index.js';
 export * from './core/embeddings/index.js';
+export { answer_from_evidence } from './answering/evidence_reader.js';
+export type { evidence_source, evidence_reader_request, evidence_reader_model, evidence_reader_result, cited_fact } from './answering/evidence_reader.js';

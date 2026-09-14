@@ -16,7 +16,7 @@
 import type { embedding_provider_config, embedding_provider_dependencies, embedding_provider_name, embedding_tier } from './types.js';
 import { create_embedding_stack } from './stack.js';
 
-const providers = new Set<embedding_provider_name>(['openai', 'gemini', 'aws', 'ollama', 'local', 'siray', 'synthetic']);
+const providers = new Set<embedding_provider_name>(['openai', 'gemini', 'nvidia', 'aws', 'ollama', 'local', 'siray', 'synthetic']);
 const tiers = new Set<embedding_tier>(['fast', 'smart', 'deep', 'hybrid']);
 const value = (env: NodeJS.ProcessEnv, ...keys: string[]) => keys.map((key) => env[key]?.trim()).find(Boolean);
 const number_value = (env: NodeJS.ProcessEnv, keys: string[], fallback: number, min = 0) => {
@@ -39,7 +39,7 @@ export function load_embedding_environment(env: NodeJS.ProcessEnv = process.env)
     const tier_raw = value(env, 'LONGMEMORY_EMBEDDING_TIER', 'OM_TIER') ?? 'deep';
     if (!tiers.has(tier_raw as embedding_tier)) throw new Error(`unknown embedding tier: ${tier_raw}`);
     const tier = tier_raw as embedding_tier;
-    const default_dimension = tier === 'smart' ? 384 : tier === 'deep' ? 1536 : 256;
+    const default_dimension = selected === 'nvidia' ? 2048 : tier === 'smart' ? 384 : tier === 'deep' ? 1536 : 256;
     return {
         provider: provider(selected, 'synthetic'),
         fallback: (value(env, 'LONGMEMORY_EMBEDDING_FALLBACK', 'OM_EMBEDDING_FALLBACK') ?? 'synthetic').split(',').map((name) => provider(name.trim(), 'synthetic')),
@@ -55,6 +55,9 @@ export function load_embedding_environment(env: NodeJS.ProcessEnv = process.env)
         gemini_base_url: value(env, 'LONGMEMORY_GEMINI_BASE_URL', 'OM_GEMINI_BASE_URL') ?? 'https://generativelanguage.googleapis.com/v1beta',
         gemini_model: value(env, 'LONGMEMORY_GEMINI_EMBEDDING_MODEL', 'OM_GEMINI_MODEL') ?? 'gemini-embedding-001',
         gemini_inputs_per_minute: number_value(env, ['LONGMEMORY_GEMINI_INPUTS_PER_MINUTE'], 0, 0),
+        nvidia_api_key: value(env, 'NVIDIA_API_KEY'),
+        nvidia_base_url: value(env, 'LONGMEMORY_NVIDIA_BASE_URL') ?? 'https://integrate.api.nvidia.com/v1',
+        nvidia_model: value(env, 'LONGMEMORY_NVIDIA_EMBEDDING_MODEL') ?? 'nvidia/nemotron-3-embed-1b',
         ollama_url: value(env, 'LONGMEMORY_OLLAMA_URL', 'OLLAMA_URL', 'OM_OLLAMA_URL') ?? 'http://127.0.0.1:11434',
         ollama_model: value(env, 'LONGMEMORY_OLLAMA_EMBEDDING_MODEL', 'OM_OLLAMA_MODEL') ?? 'nomic-embed-text',
         aws_region: value(env, 'AWS_REGION', 'AWS_DEFAULT_REGION'),

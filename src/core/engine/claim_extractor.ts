@@ -69,7 +69,7 @@ export function extract_claims(text: string): ExtractedClaim[] {
     const table_claims = extract_table_claims(text);
     const source_role = text.match(/^\s*(user|assistant|system|tool|function):\s*/i)?.[1].toLowerCase() ?? 'user';
     const prose = text.split(/\r?\n/).filter((line) => !line.trim().startsWith('|')).join('\n');
-    const protected_text = prose.replace(/\b(Dr|Mr|Mrs|Ms|Prof|[A-Z])\./g, '$1<period>');
+    const protected_text = prose.replace(/(?<=\d)\.(?=\d)/g, '<period>').replace(/\b(Dr|Mr|Mrs|Ms|Prof|[A-Z])\./g, '$1<period>');
     const statements = protected_text.split(/[.!?]+/).map((item) => item.replaceAll('<period>', '.').replace(/^\s*(?:user|assistant|system|tool|function):\s*/i, '').trim()).filter(Boolean);
     const prose_claims = statements.map((statement): ExtractedClaim => {
         const pref = statement.match(preference);
@@ -123,6 +123,16 @@ export function render_claim(claim: ExtractedClaim): string {
         : `${claim.subject} ${claim.predicate} ${claim.object}`;
 }
 
-export function summarize_claims(claims: readonly ExtractedClaim[], limit = 32): string {
-    return [...new Set(claims.map(render_claim))].slice(0, limit).join('; ');
+export function summarize_claims(
+    claims: readonly ExtractedClaim[],
+    limit = 32,
+    context?: { speaker?: string; observed_at?: number },
+): string {
+    const statements = [...new Set(claims.map((claim) => context ? claim.statement.trim() || render_claim(claim) : render_claim(claim)))].slice(0, limit);
+    if (!statements.length) return '';
+    const labels = context ? [
+        context.observed_at !== undefined && Number.isFinite(context.observed_at) ? new Date(context.observed_at).toISOString() : '',
+        context.speaker?.trim() ?? '',
+    ].filter(Boolean) : [];
+    return `${labels.length ? `[${labels.join(' ')}] ` : ''}${statements.join('; ')}`;
 }

@@ -15,7 +15,7 @@
 
 import type { language_code } from '../i18n/language_detection.js';
 
-export type embedding_provider_name = 'openai' | 'gemini' | 'aws' | 'ollama' | 'local' | 'siray' | 'synthetic';
+export type embedding_provider_name = 'openai' | 'gemini' | 'nvidia' | 'aws' | 'ollama' | 'local' | 'siray' | 'synthetic';
 export type embedding_tier = 'fast' | 'smart' | 'deep' | 'hybrid';
 export type embedding_context = { language?: language_code | string; purpose?: 'document' | 'query' };
 
@@ -41,6 +41,9 @@ export type embedding_provider_config = {
     gemini_base_url: string;
     gemini_model: string;
     gemini_inputs_per_minute: number;
+    nvidia_api_key?: string;
+    nvidia_base_url?: string;
+    nvidia_model?: string;
     ollama_url: string;
     ollama_model: string;
     aws_region?: string;

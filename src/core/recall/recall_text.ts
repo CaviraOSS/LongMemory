@@ -15,6 +15,7 @@
 
 import { tokenize } from '../i18n/multilingual_tokenizer.js';
 import type { HydroNode } from '../types/hydro_node.js';
+import { stemmer } from 'stemmer';
 
 const stopwords = new Set(['a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'can', 'could', 'did', 'do', 'does', 'for', 'from', 'had', 'has', 'have', 'how', 'i', 'in', 'is', 'it', 'me', 'my', 'of', 'on', 'or', 'should', 'that', 'the', 'to', 'was', 'were', 'what', 'when', 'where', 'which', 'who', 'why', 'will', 'with', 'would', 'you', 'your']);
 
@@ -50,12 +51,13 @@ function undouble(stem: string): string {
 }
 
 export function normalize_recall_token(value: string): string {
-    if (!/^[a-z]+$/.test(value) || value.length <= 3) return value;
+    if (!/^[a-z]+$/.test(value) || value.length <= 3 || stopwords.has(value)) return value;
     if (value.endsWith('ies')) return `${value.slice(0, -3)}y`;
     if (value.length > 5 && value.endsWith('ing')) return undouble(value.slice(0, -3));
     if (value.length > 4 && value.endsWith('ed')) return undouble(value.slice(0, -2));
     if (value.length > 4 && value.endsWith('ly')) return value.slice(0, -2);
-    if (value.endsWith('s') && !/(?:ss|us|is)$/.test(value)) return value.slice(0, -1);
+    if (value.endsWith('s') && !/(?:ss|us|is)$/.test(value)) return normalize_recall_token(value.slice(0, -1));
+    if (value.endsWith('e') && stemmer(`${value}d`) === stemmer(value)) return value.slice(0, -1);
     return value;
 }
 
@@ -75,6 +77,15 @@ export function strict_recall_tokens(text: string): string[] {
     return tokenize(text || '').map((token) => token.value);
 }
 
+export function canonical_entity_names(node: HydroNode): string[] {
+    const entities: unknown[] = Array.isArray(node.metadata.resolved_entities) ? node.metadata.resolved_entities : [];
+    return [...new Set(entities.flatMap((entity) => {
+        if (!entity || typeof entity !== 'object') return [];
+        const name = (entity as Record<string, unknown>).name;
+        return typeof name === 'string' ? [name] : [];
+    }))];
+}
+
 export function recall_document(node: HydroNode): RecallDocument {
     const cached = document_cache.get(node);
     if (cached) return cached;
@@ -82,6 +93,10 @@ export function recall_document(node: HydroNode): RecallDocument {
     const declared_speaker = typeof node.metadata.speaker === 'string' ? node.metadata.speaker : '';
     const speaker_terms = new Set(recall_tokens(`${declared_speaker} ${canonical.speaker}`));
     const terms = recall_tokens(`${canonical.body} ${node.content.summary}`).filter((term) => !speaker_terms.has(term));
+    const present = new Set([...terms, ...speaker_terms]);
+    for (const term of new Set(recall_tokens(canonical_entity_names(node).join(' ')))) {
+        if (!present.has(term)) terms.push(term);
+    }
     const frequencies = new Map<string, number>();
     for (const term of terms) frequencies.set(term, (frequencies.get(term) ?? 0) + 1);
     const document = { terms, frequencies, length: terms.length, speaker_terms };
@@ -93,7 +108,7 @@ export function strict_recall_document(node: HydroNode): StrictRecallDocument {
     const cached = strict_document_cache.get(node);
     if (cached) return cached;
     const terms = new Set(strict_recall_tokens(
-        `${node.content.canonical_text ?? node.content.canonical} ${node.content.summary} ${node.content.transliteration ?? ''}`,
+        `${node.content.canonical_text ?? node.content.canonical} ${node.content.summary} ${node.content.transliteration ?? ''} ${canonical_entity_names(node).join(' ')}`,
     ));
     const document = { terms };
     strict_document_cache.set(node, document);
@@ -103,7 +118,7 @@ export function strict_recall_document(node: HydroNode): StrictRecallDocument {
 export function subject_recall_document(node: HydroNode): SubjectRecallDocument {
     const cached = subject_document_cache.get(node);
     if (cached) return cached;
-    const document = { terms: new Set(strict_recall_tokens(`${node.content.canonical} ${node.content.summary}`)) };
+    const document = { terms: new Set(strict_recall_tokens(`${node.content.canonical} ${node.content.summary} ${canonical_entity_names(node).join(' ')}`)) };
     subject_document_cache.set(node, document);
     return document;
 }

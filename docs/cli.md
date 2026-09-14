@@ -160,14 +160,6 @@ longmemory timeline \
 
 The CLI resolves the entity ID through the facade and requests its historical timeline by canonical name. `--recorded-time` is also supported.
 
-## Benchmark
-
-```bash
-longmemory bench --pretty
-```
-
-This runs the benchmark checks shipped inside the published package and exits nonzero when a check fails. The full development harness remains available through `pnpm bench` and `pnpm bench:ci`.
-
 ## Reusable Skills
 
 ```bash

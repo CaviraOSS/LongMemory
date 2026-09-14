@@ -69,6 +69,49 @@ export class openai_embedding_provider extends remote_provider {
     }
 }
 
+export class nvidia_embedding_provider extends remote_provider {
+    readonly name = 'nvidia';
+
+    async embed(text: string, context: embedding_context = {}): Promise<number[]> {
+        return (await this.embed_many([text], context))[0];
+    }
+
+    async embed_many(texts: string[], context: embedding_context = {}): Promise<number[][]> {
+        if (!texts.length) return [];
+        if (!this.config.nvidia_api_key) throw new Error('NVIDIA embeddings require NVIDIA_API_KEY');
+        const model = this.config.nvidia_model ?? 'nvidia/nemotron-3-embed-1b';
+        if (model === 'nvidia/nemotron-3-embed-1b' && this.dimension !== 2048) {
+            throw new Error('nvidia/nemotron-3-embed-1b requires LONGMEMORY_EMBEDDING_DIMENSION=2048');
+        }
+        const url = `${(this.config.nvidia_base_url ?? 'https://integrate.api.nvidia.com/v1').replace(/\/+$/, '')}/embeddings`;
+        const vectors: number[][] = [];
+        for (let start = 0; start < texts.length; start += 16) {
+            const input = texts.slice(start, start + 16);
+            const payload = await this.request(url, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json', authorization: `Bearer ${this.config.nvidia_api_key}` },
+                body: JSON.stringify({ model, input, input_type: context.purpose === 'query' ? 'query' : 'passage', encoding_format: 'float', truncate: 'NONE' }),
+            });
+            const rows: Array<{ index?: unknown; embedding?: unknown }> = Array.isArray(payload?.data) ? payload.data : [];
+            if (rows.length !== input.length) throw new Error(`NVIDIA returned ${rows.length} embeddings for ${input.length} inputs`);
+            const ordered = new Array<number[]>(input.length);
+            for (const row of rows) {
+                const index = row?.index;
+                if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index >= input.length || ordered[index]) {
+                    throw new Error('NVIDIA returned invalid or duplicate embedding indexes');
+                }
+                const vector = row.embedding;
+                if (!Array.isArray(vector) || vector.length !== this.dimension || vector.some((value) => typeof value !== 'number' || !Number.isFinite(value))) {
+                    throw new Error(`NVIDIA must return ${this.dimension} finite numeric embedding values per input`);
+                }
+                ordered[index] = normalize_embedding_vector(vector, this.dimension);
+            }
+            vectors.push(...ordered);
+        }
+        return vectors;
+    }
+}
+
 export class siray_embedding_provider extends remote_provider {
     readonly name = 'siray';
     async embed(text: string): Promise<number[]> {
@@ -221,6 +264,7 @@ export class synthetic_embedding_provider implements configured_embedding_provid
 export function create_named_embedding_provider(name: embedding_provider_name, config: embedding_provider_config, dependencies: embedding_provider_dependencies = {}): configured_embedding_provider {
     if (name === 'openai') return new openai_embedding_provider(config, dependencies);
     if (name === 'gemini') return new gemini_embedding_provider(config, dependencies);
+    if (name === 'nvidia') return new nvidia_embedding_provider(config, dependencies);
     if (name === 'ollama') return new ollama_embedding_provider(config, dependencies);
     if (name === 'aws') return new aws_bedrock_embedding_provider(config, dependencies);
     if (name === 'local') return new local_http_embedding_provider(config, dependencies);

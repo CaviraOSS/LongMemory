@@ -24,14 +24,17 @@ permission, contradiction, confidence, and grounding gates.
 | ----------------- | -------------------------------- | ---------------------------------- |
 | OpenAI-compatible | `OPENAI_API_KEY`                 | `text-embedding-3-small`           |
 | Gemini            | `GEMINI_API_KEY`                 | `gemini-embedding-001`             |
+| NVIDIA NIM        | `NVIDIA_API_KEY`                 | `nvidia/nemotron-3-embed-1b`       |
 | AWS Bedrock       | standard AWS credential chain    | `amazon.titan-embed-text-v2:0`     |
 | Ollama            | `LONGMEMORY_OLLAMA_URL`          | `nomic-embed-text`                 |
 | Local HTTP        | `LONGMEMORY_LOCAL_EMBEDDING_URL` | `local-model`                      |
 | Siray             | `SIRAY_API_TOKEN`                | `text-embedding-3-small`           |
 | Synthetic         | no credentials                   | deterministic multilingual hashing |
 
-All provider vectors are validated, resized to the configured dimension, and
-L2 normalized. The same dimension configures world embeddings, Frequent
+All provider vectors are validated and L2 normalized. Existing providers resize
+to the configured dimension; NVIDIA instead requires matching dimensions and
+rejects malformed vectors rather than silently truncating or padding them.
+The same dimension configures world embeddings, Frequent
 Directions sketches, and entity drift tracking for new stores.
 
 ## Configuration
@@ -51,6 +54,36 @@ LONGMEMORY_OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 The archived `OM_*` names remain accepted. New deployments should prefer the
 `LONGMEMORY_*` names documented in `.env.example`.
 
+## NVIDIA Nemotron
+
+The [NVIDIA API](https://docs.api.nvidia.com/nim/reference/nvidia-nemotron-3-embed-1b-infer)
+supports single inputs and batches at `https://integrate.api.nvidia.com/v1/embeddings`.
+Select it with these non-secret settings and load `NVIDIA_API_KEY` from your
+environment file using the application's normal environment-loading mechanism:
+
+```env
+LONGMEMORY_EMBEDDING_PROVIDER=nvidia
+LONGMEMORY_EMBEDDING_TIER=deep
+LONGMEMORY_EMBEDDING_DIMENSION=2048
+LONGMEMORY_NVIDIA_EMBEDDING_MODEL=nvidia/nemotron-3-embed-1b
+LONGMEMORY_NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
+```
+
+The provider sends document embeddings as `input_type=passage`, queries as
+`input_type=query`, and requests float output. Batches are capped at 16 inputs
+per request; response indexes are checked and used to restore input order.
+`truncate=NONE` makes oversized inputs fail rather than silently discard text.
+The model card and hosted API schema list different context limits, so the
+adapter leaves token-limit enforcement to the server instead of guessing a
+character cutoff.
+
+The default dimension for `nvidia` is 2048. Explicitly set it when switching from
+a profile that already specifies 768 or 1536. Re-embed stored documents into a
+new compatible index; do not mix vectors from NVIDIA and Gemini or other models.
+The shared runtime fallback policy below is unchanged; instantiate the exported
+`nvidia_embedding_provider` directly when a failure must not use fallback.
+Semantic benchmark providers already use this direct, fail-fast path.
+
 ## Tiers
 
 - `hybrid`: deterministic multilingual vectors plus Hydrograph lexical/BM25
@@ -66,18 +99,14 @@ does not make memory unusable.
 ## Programmatic use
 
 ```ts
-import {
-  createMemory,
-  openai_embedding_provider,
-  load_embedding_environment,
-} from "longmemory";
+import { createMemory, openai_embedding_provider, load_embedding_environment } from 'longmemory';
 
 const providerConfig = load_embedding_environment(process.env)!;
 const provider = new openai_embedding_provider(providerConfig, {});
 
 const memory = createMemory({
-  embedding_provider: provider,
-  embedding_dimension: provider.dimension,
+    embedding_provider: provider,
+    embedding_dimension: provider.dimension,
 });
 ```
 

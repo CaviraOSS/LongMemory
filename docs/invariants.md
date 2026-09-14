@@ -27,6 +27,5 @@
 11. Associative recall may use superseded/emotional residue but must label it.
 12. Compression cannot override truth.
 13. API server and CLI must use the same createMemory engine.
-14. Benchmarks define correctness.
 
-These invariants are product constraints. Production features are incomplete until benchmarks prove they preserve them.
+These invariants are product constraints.

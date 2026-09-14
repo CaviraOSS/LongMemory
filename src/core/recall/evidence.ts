@@ -34,6 +34,7 @@ export type memory_evidence = {
     observed_at: number;
     status: memory_status;
     speaker: string | null;
+    sources?: Array<{ id: string; content_hash: string; source_ref: string | null }>;
 };
 
 export function memory_status_of(node: HydroNode): memory_status {
@@ -51,10 +52,8 @@ function iso_date(at: number): string {
     return Number.isFinite(at) ? new Date(at).toISOString().slice(0, 10) : 'undated';
 }
 
-const narrative_kinds = new Set<NodeClaim['kind']>(['action', 'procedure', 'reflection']);
-
 function present_claim(claim: NodeClaim): string {
-    return narrative_kinds.has(claim.kind) && claim.statement.trim() ? claim.statement.trim() : render_claim(claim);
+    return claim.statement.trim() || render_claim(claim);
 }
 
 function claim_body(node: HydroNode, query_terms: readonly string[], max_claims: number): string {
@@ -82,6 +81,7 @@ function claim_body(node: HydroNode, query_terms: readonly string[], max_claims:
     const selected = relevant.length ? [
         ...relevant,
         ...scored.filter((claim) => claim.overlap === 0 && neighbour_orders.has(claim.order)).sort((left, right) => left.order - right.order),
+        ...scored.filter((claim) => claim.overlap === 0 && !neighbour_orders.has(claim.order)).sort((left, right) => left.order - right.order),
     ] : scored;
     return selected.slice(0, max_claims).map((claim) => claim.text).join('; ');
 }
@@ -107,5 +107,6 @@ export function memory_evidence_of(node: HydroNode, options: memory_evidence_opt
         observed_at: node.temporal.observed_at,
         status: memory_status_of(node),
         speaker: memory_speaker_of(node),
+        sources: [{ id: node.id, content_hash: node.content_hash, source_ref: typeof node.metadata.source_ref === 'string' ? node.metadata.source_ref : null }],
     };
 }

@@ -24,11 +24,11 @@ identity, executable-edge, bitemporal, grounding, audit, and sketch semantics.
 native installation script. Create or open a database with:
 
 ```ts
-import { SqliteStore } from "longmemory";
+import { SqliteStore } from 'longmemory';
 
-const store = new SqliteStore("./longmemory.db", {
-  tenantId: "tenant:default",
-  userId: "user:alice",
+const store = new SqliteStore('./longmemory.db', {
+    tenantId: 'tenant:default',
+    userId: 'user:alice',
 });
 ```
 
@@ -124,9 +124,9 @@ back. No passive edge insertion path is used by this method.
 const current = store.queryCurrentTruth({ at: Date.now() });
 const past = store.queryHistoricalTruth({ at: Date.UTC(2026, 0, 15) });
 const strict = store.queryStrictCandidates({
-  at: Date.now(),
-  minConfidence: 0.5,
-  groundingThreshold: 0.6,
+    at: Date.now(),
+    minConfidence: 0.5,
+    groundingThreshold: 0.6,
 });
 ```
 
@@ -151,13 +151,3 @@ Closing and reopening the same file restores nodes, temporal envelopes,
 contracts, facts, and sketches. For operational backups, use SQLite's online
 backup API or copy the database only after checkpointing WAL. Do not copy only
 the main `.db` file while an active WAL contains uncheckpointed writes.
-
-## Benchmark
-
-The `sqlite` benchmark persists 250 nodes in quick mode (5,000 in full mode),
-executes a supersession transaction, verifies current/historical/strict truth,
-runs integrity checks, and gates indexed strict-candidate p95 at 25 ms.
-
-```powershell
-pnpm exec tsx benchmarks/src/cli.ts --quick --only=sqlite --ci
-```

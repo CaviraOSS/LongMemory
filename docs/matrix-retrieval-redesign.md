@@ -206,7 +206,7 @@ structured claims; claims are an index, not a replacement for evidence.
 
 1. Keep the complementary-claim rendering fix and add regression cases for
    Starbucks and other multi-clause turns.
-2. Persist compact seed density, entropy, and peak diagnostics in benchmark
+2. Persist compact seed density, entropy, and peak diagnostics in run
    artifacts.
 3. Implement sparse typed diffusion behind a benchmarkable configuration and
    require seed density at most 0.15.
@@ -217,17 +217,6 @@ structured claims; claims are an index, not a replacement for evidence.
    polarity coverage.
 6. Add ordered neighbour bundles for selected anchors.
 7. Run retrieval-only A/B first, then a fresh Copilot-judged scorecard.
-
-## Acceptance gates
-
-- LongMemEval Answer@5 remains at least 88.9%.
-- LoCoMo Answer@5 reaches at least 60% in the first iteration.
-- LoCoMo Hit@5 reaches at least 70%.
-- Context recall reaches at least 75% and evidence completeness at least 65%.
-- Diffusion seed density is at most 0.15 and normalized entropy at most 0.90
-  when graph expansion is active.
-- Gold-present answer failures fall from four to at most one.
-- p50 retrieval remains at most 600 ms and p95 at most 900 ms.
 
 Do not re-enable RRF or RM3 and do not increase the current lexical reranker
 weights. Prior controlled A/B runs showed those changes regress retrieval.
@@ -245,7 +234,7 @@ Implemented in the associative recall path:
 - exception-aware polarity scoring and token-constrained evidence selection;
 - exact-source predecessor bundles for explicit elliptical turns;
 - query-conditioned complementary claim rendering;
-- compact matrix, diffusion, and bundle diagnostics in benchmark hits;
+- compact matrix, diffusion, and bundle diagnostics in run hits;
 - `OM_MATRIX_RETRIEVAL=0` as the legacy A/B path.
 
 Matrix rank intervention is deliberately targeted to universal/exception
@@ -253,25 +242,5 @@ queries. Applying it to every query improved precision but slightly reduced
 recall; ordinary queries retain the established scorer while still benefiting
 from bounded evidence rendering.
 
-The complete deterministic K=5 retrieval A/B (`matrix-retrieval-v5`) improved:
-
-| Metric                  | Previous | Implemented |
-| ----------------------- | -------: | ----------: |
-| Context recall          |    60.9% |       62.6% |
-| Rank-weighted precision |    49.6% |       50.4% |
-| Evidence completeness   |    46.7% |       46.7% |
-| p50 retrieval           | 527.7 ms |    540.3 ms |
-| p95 retrieval           | 774.2 ms |    693.3 ms |
-
-Only `conv-50:qa:66` changed evidence recall: 0% to 50%, with no case-level
-retrieval regressions. Its targeted seed density was 5.6%, replacing the prior
-99.8% dense seed field, and the decisive failed Mustang restoration entered
-top five.
-
-Three complete Copilot Luna judged reruns produced unstable LongMemEval and
-knowledge-update scores despite identical deterministic retrieval. LoCoMo
-ranged from 53.3% to 60.0% after implementation, versus 40.0% before; the
-system consistently fixed Melanie's elliptical trail-walk answer, the
-Starbucks/beer clause, and Dave's failed restoration answer in diagnostic
-runs. Judged results should therefore be repeated or use a deterministic model
+Judged results should therefore be repeated or use a deterministic model
 endpoint before treating one run as a release gate.

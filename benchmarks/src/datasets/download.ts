@@ -16,12 +16,13 @@
 
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { longmemeval_filename } from './public';
 
 const sources = [
     {
-        name: "longmemeval oracle",
-        url: "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_oracle.json",
-        file: "longmemeval_oracle.json",
+        name: longmemeval_filename(),
+        url: `https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/${longmemeval_filename()}`,
+        file: longmemeval_filename(),
     },
     {
         name: "locomo 10",

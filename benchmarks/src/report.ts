@@ -229,13 +229,18 @@ export function markdown(report: benchmark_report): string {
         "",
         "## Coverage",
         "",
-        "| Dataset | Completed | Failed |",
-        "| --- | ---: | ---: |",
-        ...(provider?.datasets.map((dataset) => `| ${dataset.dataset} | ${dataset.questions} | ${dataset.failed_questions} |`) ?? []),
+        "| Dataset | Variant | Selected / Source | Completed | Failed |",
+        "| --- | --- | ---: | ---: | ---: |",
+        ...(provider?.datasets.map((dataset) => {
+            const coverage = report.manifest.dataset_coverage?.[dataset.dataset];
+            return `| ${dataset.dataset} | ${coverage?.variant ?? 'unrecorded'} | ${coverage?.selected ?? dataset.questions} / ${coverage?.total ?? 'unknown'} | ${dataset.questions} | ${dataset.failed_questions} |`;
+        }) ?? []),
         "",
         "## Methodology",
         "",
         `- LongMemory only; ${report.manifest.case_ids.length} selected questions; evidence metrics use K=${card.cutoff}.`,
+        "- A completed selected sample is not a full-dataset result. LongMemEval oracle includes evidence sessions only and is not LongMemEval-S.",
+        `- Answer/judge protocol version: ${report.manifest.ai.protocol_version ?? 1}; version 2 excludes gold categories from answer prompts and rejects contradictory judge verdicts.`,
         `- Context budget: ${report.manifest.context_token_budget} tokens. Retrieval values are macro-averaged over evidence-bearing questions.`,
         `- Answerer: ${report.manifest.ai.answerer ? `${report.manifest.ai.answerer.provider}:${report.manifest.ai.answerer.model}` : "disabled"}.`,
         `- Judge: ${report.manifest.ai.judge ? `${report.manifest.ai.judge.provider}:${report.manifest.ai.judge.model}` : "disabled"}.`,

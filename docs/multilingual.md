@@ -44,8 +44,8 @@ Latin diacritic folding is available as a secondary search variant. It is not ap
 const memory = await createMemory();
 
 const result = await memory.ingest({
-  user_id: "user:alice",
-  text: "मुझे TypeScript पसंद है backend के लिए.",
+    user_id: 'user:alice',
+    text: 'मुझे TypeScript पसंद है backend के लिए.',
 });
 
 console.log(result.node.content.original_text);
@@ -56,7 +56,7 @@ console.log(result.node.content.code_switch_segments);
 ## Language and script detection
 
 ```ts
-import { detectLanguage, detectScript, detectCodeSwitching } from "longmemory";
+import { detectLanguage, detectScript, detectCodeSwitching } from 'longmemory';
 ```
 
 Supported language goals include English, Hindi, Telugu, Tamil, Bengali, Urdu, Arabic, Spanish, French, German, Dutch, Finnish, Chinese, Japanese, Korean, Russian, Portuguese, and mixed text.
@@ -68,7 +68,7 @@ Code-switch detection records original offsets and segments. A Hindi/English mes
 ## Normalization and transliteration
 
 ```ts
-import { normalizeMultilingualText, transliterate } from "longmemory";
+import { normalizeMultilingualText, transliterate } from 'longmemory';
 ```
 
 Transliteration is optional and conservative. It currently provides curated Indic aliases and deterministic Arabic/Urdu and Cyrillic search forms. Unsupported scripts return no transliteration rather than fabricating a low-quality alias.
@@ -78,9 +78,9 @@ Transliterations are never source truth. They are search/entity hints with schem
 ## Language-aware tokenization
 
 ```ts
-import { tokenize } from "longmemory";
+import { tokenize } from 'longmemory';
 
-tokenize("用户喜欢数据库", "zh", "Han");
+tokenize('用户喜欢数据库', 'zh', 'Han');
 ```
 
 The tokenizer handles:
@@ -102,9 +102,9 @@ When no provider is supplied, LongMemory uses a small deterministic fallback wit
 
 ```ts
 const memory = await createMemory({
-  multilingual_embedding_provider: {
-    embed: async (text, language) => model.embed(text, language),
-  },
+    multilingual_embedding_provider: {
+        embed: async (text, language) => model.embed(text, language),
+    },
 });
 ```
 
@@ -116,13 +116,13 @@ A query language does not need to match the stored language:
 
 ```ts
 await memory.ingest({
-  user_id: "user:alice",
-  text: "मुझे TypeScript पसंद है backend के लिए.",
+    user_id: 'user:alice',
+    text: 'मुझे TypeScript पसंद है backend के लिए.',
 });
 
 const result = await memory.recall({
-  text: "What language does the user prefer for backend?",
-  mode: "strict",
+    text: 'What language does the user prefer for backend?',
+    mode: 'strict',
 });
 ```
 
@@ -143,10 +143,10 @@ Use `recallMultilingual` when an agent needs explicit original/display language 
 
 ```ts
 const result = await memory.recallMultilingual({
-  text: "backend preference",
-  mode: "strict",
-  output_language: "en",
-  token_budget: 256,
+    text: 'backend preference',
+    mode: 'strict',
+    output_language: 'en',
+    token_budget: 256,
 });
 ```
 
@@ -168,16 +168,16 @@ Translation is disabled by default.
 
 ```ts
 const memory = await createMemory({
-  enable_translation: true,
-  output_language: "en",
-  translation_provider: {
-    name: "my-translator",
-    translate: async (text, from, to) => ({
-      text: await translator.translate(text, from, to),
-      confidence: 0.94,
-      provider: "my-translator",
-    }),
-  },
+    enable_translation: true,
+    output_language: 'en',
+    translation_provider: {
+        name: 'my-translator',
+        translate: async (text, from, to) => ({
+            text: await translator.translate(text, from, to),
+            confidence: 0.94,
+            provider: 'my-translator',
+        }),
+    },
 });
 ```
 
@@ -195,13 +195,13 @@ Memory contracts add:
 
 ```ts
 await memory.ingest({
-  user_id: "legal",
-  text: "契約条項を変更しないこと。",
-  contract: {
-    preserve_exact_language: true,
-    translation_allowed: false,
-    transliteration_allowed: false,
-  },
+    user_id: 'legal',
+    text: '契約条項を変更しないこと。',
+    contract: {
+        preserve_exact_language: true,
+        translation_allowed: false,
+        transliteration_allowed: false,
+    },
 });
 ```
 
@@ -213,14 +213,14 @@ The entity resolver now normalizes names with Unicode letters and marks rather t
 
 ```ts
 const canonical = await memory.resolveEntity({
-  name: "Narendra Modi",
-  type: "person",
-  aliases: ["Modi"],
+    name: 'Narendra Modi',
+    type: 'person',
+    aliases: ['Modi'],
 });
 
 const telugu = await memory.resolveEntity({
-  name: "మోదీ",
-  type: "person",
+    name: 'మోదీ',
+    type: 'person',
 });
 ```
 
@@ -238,40 +238,15 @@ Direction metadata is presentation context only. Source order and original Unico
 
 ```ts
 const memory = await createMemory({
-  default_language: "en",
-  output_language: "en",
-  preserve_original_text: true,
-  enable_translation: false,
-  translation_provider,
-  enable_transliteration: true,
-  multilingual_embedding_provider,
-  fallback_language: "en",
+    default_language: 'en',
+    output_language: 'en',
+    preserve_original_text: true,
+    enable_translation: false,
+    translation_provider,
+    enable_transliteration: true,
+    multilingual_embedding_provider,
+    fallback_language: 'en',
 });
 ```
 
 Original text is retained even when `preserve_original_text` is omitted. This option declares output policy; it does not permit destructive loss of source wording.
-
-## Benchmarks
-
-The reusable benchmark harness includes the `multilingual` suite and eight gates:
-
-1. Language detection accuracy
-2. Script detection accuracy
-3. Code-switch detection
-4. Cross-lingual recall accuracy
-5. Entity alias matching across scripts
-6. Translation safety
-7. No loss of original text
-8. Multilingual token-budget compliance
-
-Datasets live under `src/benchmarks/datasets`:
-
-- `multilingual_preferences.ts`
-- `multilingual_entities.ts`
-- `code_switching.ts`
-- `crosslingual_recall.ts`
-- `translation_safety.ts`
-
-```bash
-pnpm exec tsx benchmarks/src/cli.ts --quick --only=multilingual --ci
-```

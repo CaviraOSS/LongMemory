@@ -85,14 +85,6 @@ grounding requirements are preserved. Factual outputs carry valid-time and
 recorded-time. A repeated factual cluster whose sources or WorldDB fact are
 stale is emitted only as `superseded`, so strict recall rejects it.
 
-## Recall quality
-
-Consolidation reduces repeated episodic noise by adding one current, stable,
-high-confidence summary. The Phase 15 acceptance benchmark runs the existing
-`qualityReport` before and after consolidation and requires MRR to improve while
-recall is preserved or improved. Stale-fact leakage is checked separately by
-running the consolidated set through strict recall.
-
 ## Rules
 
 1. Source memories are never mutated or deleted.
@@ -101,4 +93,4 @@ running the consolidated set through strict recall.
 4. Factual outputs are bitemporal.
 5. Stale corrections are skipped; stale factual clusters cannot enter strict
    recall as current truth.
-6. Consolidation must improve or preserve benchmark recall quality.
+6. Consolidation must not silently alter evidence or override provenance.

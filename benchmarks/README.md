@@ -144,6 +144,10 @@ Deterministic evidence retrieval metrics always run, including in AI mode. Defau
 
 - `smoke`: eleven tiny deterministic wiring checks covering extraction, preference, multi-session, temporal reasoning, knowledge update, abstention, single-hop, multi-hop, open-domain, adversarial, and summary retrieval. It is intentionally easy and not a comparative benchmark.
 - `longmemeval`: official LongMemEval oracle JSON.
+- Set `BENCH_LONGMEMEVAL_VARIANT=s` or `m` to download and load the corresponding
+  cleaned non-oracle variant; the default remains `oracle`. Missing variants
+  fail instead of silently falling back. Oracle contains only evidence sessions
+  and must not be reported as LongMemEval-S.
 - `locomo`: official LoCoMo JSON.
 - `beam-1m`: BEAM 1M-token bucket (35 conversations, 700 validated questions).
 - `beam-10m`: BEAM 10M-token bucket (10 conversations, 200 questions).
@@ -159,6 +163,20 @@ Official runs are rejected unless both `--answerer` and `--judge` are configured
 During retrieval engineering, `--retrieval-diagnostic` permits LongMemEval/LoCoMo without AI calls. Reports are labelled `retrieval diagnostic`, cannot be confused with official answer accuracy, and still require a real semantic embedding profile for LongMemory.
 
 Use `--sample-offset=<n>` for deterministic holdouts. LoCoMo sampling maximizes distinct conversations across task categories, and questions sharing one corpus reuse a single ingestion/indexing pass. Development diagnostics and final Codex validation must use different offsets.
+
+Different offsets can still overlap LoCoMo question IDs: verify disjointness
+explicitly. Sampling preserves corpus diversity first, then includes remaining
+questions up to the requested limit; it no longer discards all but one question
+per corpus/category. `pnpm bench:full` requests all 500 LongMemEval and all 1,986
+LoCoMo questions at K=5. `pnpm bench:quality` remains a 33-question sample.
+Full runs make thousands of answer/judge calls and require sufficient quota.
+Reports include the variant and selected/source counts in `dataset_coverage`.
+
+`pnpm bench:check` runs deterministic sampler, exact-number extraction, evidence,
+prompt-isolation, judge-parser, report-coverage, and smoke checks without hosted
+models. Answer/judge protocol version 2 does not expose gold question categories
+to the answerer, makes Copilot tools unavailable, and rejects contradictory
+verdicts. Gold answers, categories, and evidence are evaluator-only.
 
 Official LongMemory runs require a semantic embedding profile. The validated local profile is `LONGMEMORY_EMBEDDING_PROVIDER=ollama`, `LONGMEMORY_EMBEDDING_TIER=deep`, `LONGMEMORY_EMBEDDING_DIMENSION=768`, and `LONGMEMORY_OLLAMA_EMBEDDING_MODEL=embeddinggemma:latest`.
 
@@ -176,6 +194,208 @@ must be preflighted through the same transport before a long run.
 explicit, distinct model specs through `BENCH_OFFICIAL_ANSWERER` and
 `BENCH_OFFICIAL_JUDGE`. Official runs reject using the same provider/model as
 both roles. Exact required `I don't know` abstentions are scored deterministically.
+
+## Lightweight Evidence Reranking
+
+Associative recall now applies a deterministic evidence-aware algorithm to the
+existing top-50 rerank window before the requested result limit. It requires no
+neural weights, training data, GPU, additional service, or extra embedding calls.
+It uses only question text and admitted memory content, never gold labels.
+
+- Prefer a named person's own assertions or explicit statements about that
+  person over another speaker merely addressing them. First-person questions
+  favor user statements unless they explicitly ask about the assistant.
+- Discount question-only passages and simple excluded-topic-only matches.
+- For count/list questions, greedily reduce repeated vocabulary beyond the query
+  terms to favor complementary events. This is a novelty heuristic, not exact
+  event deduplication or a reliable event-counting engine.
+- Preserve the strongest original counterevidence within the first three
+  reranked candidates for named-person questions. Without this protection,
+  false-premise questions lost the other person's event needed for abstention.
+- Cache text features on immutable nodes with a WeakMap. Access gates, stored
+  facts, source provenance, and the context budget are not relaxed or rewritten.
+
+The evidence algorithm is enabled by default. Set `LONGMEMORY_EVIDENCE_RERANK=0`
+to disable that stage. Manifests record `evidence_rerank` and
+`evidence_rerank_version`; hit breakdowns expose `evidence_adjustment`, and
+recall traces identify the inferred subject and candidate count. The older
+`LONGMEMORY_SESSION_COVERAGE` option is separate and remains disabled by default.
+
+The base feature adjustment is `0.24 * attribution + 0.06 * assertion`, minus
+`0.16` for an excluded-only match, with a `0.12 * redundancy` penalty during
+aggregate ordering. Version 3 adds the optional word-variant feature described below.
+These are fixed engineering weights, not learned parameters or calibrated
+probabilities. Subject/exclusion/count patterns are primarily English and are
+not general coreference or temporal reasoning. Ambiguous multiple-person queries
+receive no named-subject preference. Reported speech and unusual phrasing can
+still fool the heuristic; related-but-unhelpful statements can still be selected.
+
+### Validation, 2026-09-14
+
+All runs below used NVIDIA `nvidia/nemotron-3-embed-1b`, 2048 dimensions, K=5,
+and the existing 2,048-token budget. No fallback or cached alternate-provider
+vectors were used. These are samples, not full-dataset results.
+
+| Retrieval sample                              | Recall off / on | Rank-weighted precision off / on | Complete evidence off / on |
+| --------------------------------------------- | --------------: | -------------------------------: | -------------------------: |
+| Development, 33 questions                     | 63.94% / 67.11% |                  50.94% / 54.93% |            50.00% / 50.00% |
+| Development-disjoint validation, 32 questions | 70.83% / 74.40% |                  60.22% / 57.84% |            60.71% / 67.86% |
+| Fresh oracle holdout, 18 questions            | 78.89% / 83.89% |                  57.15% / 66.67% |            73.33% / 80.00% |
+
+The first candidate regressed the 32-question set; its artifacts are retained.
+Adding counterevidence retention corrected the losses. That set therefore became
+repair validation, not an untouched holdout. The final 18-question comparison
+used offset 9 with IDs disjoint from offsets 0, 3, and 6, and no tuning followed.
+Both final validation comparisons had no per-case recall losses. The precision
+decline on the 32-question set is a real tradeoff and is not hidden by the gains.
+
+Fresh judged development run `2026-09-14-evidence-judged` completed all 33 cases:
+LongMemEval oracle **17/18 (94.44%)**, LoCoMo **10/15 (66.67%)**, combined
+**27/33 (81.82%)**, versus the prior audited **23/33 (69.70%)**. Four answers
+changed from incorrect to correct: projects, model kits, Rachel's update, and
+Sam's stress relief. There were no answer regressions or invalid verdicts in this
+comparison. The 80% repository gate passed; the overall/full-dataset 92% target
+remains unmet. Separate model calls can vary, so this is not a confidence-bounded
+estimate of the algorithm's causal effect. Held-out comparisons were retrieval-only.
+
+CPU-only timing on 50 saved candidates measured approximately 5.4ms warm median,
+9.2ms warm p95, and 51.9ms for initial feature extraction with the final version,
+including counterevidence retention. This is not end-to-end latency evidence.
+There are at most 1,225 pairwise novelty comparisons for 50 candidates; their cost
+depends on passage vocabulary. Cached token sets take memory proportional to the
+analyzed text and become collectible with their source nodes. No dependencies
+were added. Deployment timing should be measured on its own corpus and hardware.
+
+Artifacts are under `benchmarks/runs/`: `2026-09-14-evidence-judged`,
+`2026-09-14-evidence-validation-off`, `2026-09-14-evidence-validation-on`
+(rejected first version), `2026-09-14-evidence-validation-v2`,
+`2026-09-14-evidence-fresh-off`, and `2026-09-14-evidence-fresh-on`.
+Offline regressions run with `node --import tsx benchmarks/src/check.ts --unit-only`.
+The retained algorithm does not repair first-claim-only reconciliation, invent
+missing events, guarantee correct abstention, or validate the reader's answer.
+
+### LoCoMo Calendar Follow-up
+
+Version 3 adds two deterministic retrieval signals, with no additional model
+service or embedding calls:
+
+- A soft calendar score recognizes one English month/year or month/day/year
+  expression, using UTC boundaries. Explicit date mentions and simple relative
+  references (`last month`, `last week`, `yesterday`) can match an observation
+  recorded later. Invalid dates, multiple dates, and range/before/after queries
+  are left neutral. This is not full event-time extraction: an unrelated date
+  in a multi-topic passage may still influence the score.
+- A bounded derivational match connects longer English words through a small
+  suffix set such as `-ation` or `-ment`. The match receives a 0.12 bonus and
+  counts as assertion support. It does not change global token normalization;
+  morphological resemblance is not proof of semantic equivalence.
+
+Calendar support contributes at most 0.20 before shortlist truncation. Calendar
+queries preserve the evidence-aware ordering instead of applying the default
+positional diversity pass a second time. Explicit caller diversity settings still
+apply. In the diagnostic photo case, that second pass had moved a source with
+the third-highest score to seventh place. The fix retains that source in top-K
+without increasing K, the token budget, or weakening any admission gate.
+
+Set `LONGMEMORY_CALENDAR_RERANK=0` to disable both calendar promotion and its
+ordering policy. Set `LONGMEMORY_DERIVATION_RERANK=0` to disable the word-variant
+feature. Disabling both reproduces the version-2 feature set with evidence
+reranking still enabled. Calendar ranking is independent of
+`LONGMEMORY_EVIDENCE_RERANK`; disabling all three restores the pre-feature path.
+Manifests record both flags, and score breakdowns expose `calendar_adjustment`.
+
+| LoCoMo development sample, 15 questions |      Version 2 |      Version 3 |
+| --------------------------------------- | -------------: | -------------: |
+| Judged answers                          | 10/15 (66.67%) | 10/15 (66.67%) |
+| Context recall                          |         47.78% |         56.11% |
+| Rank-weighted precision                 |         41.33% |         48.61% |
+| Complete evidence                       |         33.33% |         40.00% |
+
+Nate's food-photo answer changed from abstention to the correct coconut-milk
+ice cream answer. An open-domain career answer changed from correct to incorrect
+despite identical retrieved text, offsetting the gain. The judge rejected
+"wildlife conservationist" in the new run; neither answer instructions nor the
+judge rubric was changed. The result therefore supports a retrieval improvement,
+not a demonstrated improvement in aggregate judged accuracy. The 80% answer gate
+still fails, and the broader 92% goal remains unmet.
+
+Two paired NVIDIA-only retrieval validations used different question IDs from
+the inspected development sets:
+
+| Validation                                    | Recall off / on | Precision off / on | Completeness off / on |
+| --------------------------------------------- | --------------: | -----------------: | --------------------: |
+| 15 hash-selected, category-balanced questions | 30.29% / 30.29% |    21.30% / 21.30% |       26.67% / 26.67% |
+| 6 additional date-bearing questions           | 66.67% / 66.67% |    50.00% / 50.00% |       66.67% / 66.67% |
+
+Neither validation had a per-case recall loss. The first had no positive calendar
+matches and is only a general regression check. All six date-bearing questions
+exercised calendar ranking and five changed source ordering, but aggregate quality
+was unchanged. These small, question-disjoint sets share conversation corpora with
+development; they are not independent-corpus or full-dataset generalization tests.
+No further changes were made in response to their answers or labels.
+
+All runs used NVIDIA `nvidia/nemotron-3-embed-1b`, 2048-dimensional vectors, K=5,
+the existing 2,048-token budget, and no provider fallback. The judged run retained
+the separate Copilot role sessions and protocol-v2 answer/judge prompts. No
+end-to-end latency improvement is claimed. Date parsing is neutral for queries
+without an explicit supported calendar expression. Exclusion semantics, complete
+multi-event inventories, false-premise handling, and reader list/detail
+completeness remain unresolved.
+
+Artifacts: `runs/2026-09-14-locomo-context-judged/report.json`,
+`runs/2026-09-14-locomo-context-validation-{off,on}/report.json`, and
+`runs/2026-09-14-locomo-context-calendar-validation-{off,on}/report.json`.
+The baseline is the LoCoMo subset of `runs/2026-09-14-evidence-judged/report.json`.
+Earlier development probes remain in `runs/2026-09-14-locomo-calendar`,
+`runs/2026-09-14-locomo-contextual`, and `runs/2026-09-14-calendar-rank`.
+
+## Evidence-First Reader Experiment
+
+The public, opt-in `answer_from_evidence` library adapter was compared with the
+existing direct-answer prompt using identical saved NVIDIA evidence. Ordinary
+benchmark commands still use the direct reader; no default scorecard protocol,
+gold rubric, retrieval configuration, or embedding profile was changed.
+
+Each question ran both conditions, alternating the first condition by index.
+Both used separate Copilot answerer/judge role sessions with `gpt-5.6-luna`,
+zero retry attempts after a failure, at most five saved hits, and the same
+2,048-token evidence allowance. Structured output adds prompt/output overhead;
+evidence serialization differs between conditions. Both allow general inference
+from grounded personal premises, with no gold categories sent to either reader.
+The same existing judge receives only the final answer, not the condition or
+ledger. Invalid reader output receives no credit. Exact required abstentions
+retain the existing deterministic scoring rule.
+
+| Fixed-context diagnostic                 |         Direct | Evidence-first | Invalid reader output |
+| ---------------------------------------- | -------------: | -------------: | --------------------: |
+| Development, 15 LoCoMo questions         | 10/15 (66.67%) | 12/15 (80.00%) |                     0 |
+| Separate validation, 15 LoCoMo questions |  7/15 (46.67%) |  7/15 (46.67%) |                     0 |
+
+The two development gains were the Star Wars recommendation and false-premise
+deal question. There were no per-case verdict regressions in either comparison.
+No evidence was omitted by the adapter's allowance. The unchanged validation
+score limits the conclusion: this is promising opt-in behavior, not proof of
+general improvement or 92% accuracy. Only one paired pass was run; independent
+judge calibration, repetitions, full datasets, and other-domain model evaluations
+remain pending. The validation IDs differ from development but share conversation
+corpora and were previously used for retrieval checks. Mocked non-conversational
+and multilingual tests validate API contracts, not real-world model accuracy.
+
+Average answer-call duration was 10.42s direct versus 11.55s evidence-first on
+development, and 10.09s versus 11.39s on validation. Mean returned output size
+rose from 63.7 to 578.4 characters and from 37.1 to 621.9 characters respectively.
+These include the ledger; they are not token/cost estimates. Hosted service
+variation and prompt differences preclude a deployment latency guarantee. The
+CLI transport still does not enforce the requested decoding/token settings, and
+the adapter cannot cancel work inside a callback that ignores its AbortSignal.
+
+Artifacts: `runs/2026-09-14-reader-development/diagnostic.json` and
+`runs/2026-09-14-reader-validation/diagnostic.json`. Each records source-report
+and context hashes, both answers and judgments, the ledger, validation status,
+and observed durations/output sizes. Reproduction is in `tmp/evidence_reader_eval.ts`.
+No new embeddings, follow-up searches, or automatic answer repairs were used.
+The ordinary answer path remains unchanged, and automatic follow-up retrieval
+is deferred rather than enabled on this limited evidence.
 
 ## Flags
 

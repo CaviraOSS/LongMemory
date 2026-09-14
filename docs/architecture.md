@@ -34,7 +34,6 @@ Phase 1 creates the foundation only:
 - invariants
 - docs
 - acceptance tests
-- benchmark placeholder command
 
 Phase 1 does not include production memory storage, dashboard, hosted service, graph visualization, vector database integration, or external connectors.
 

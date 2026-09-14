@@ -14,10 +14,17 @@
 
 
 import { readFileSync } from "node:fs";
+import { basename } from "node:path";
 import type { benchmark_case, benchmark_event, dataset_load } from "../types";
 
 const day_ms = 86_400_000;
 const base_time = Date.UTC(2024, 0, 1);
+const longmem_files: Record<string, string> = { oracle: 'longmemeval_oracle.json', s: 'longmemeval_s_cleaned.json', m: 'longmemeval_m_cleaned.json' };
+
+export function longmemeval_filename(variant = process.env.BENCH_LONGMEMEVAL_VARIANT ?? 'oracle'): string {
+    if (!Object.hasOwn(longmem_files, variant)) throw new Error('BENCH_LONGMEMEVAL_VARIANT must be oracle, s, or m');
+    return longmem_files[variant];
+}
 
 type longmem_turn = { role?: string; content?: string; has_answer?: boolean };
 type longmem_entry = {
@@ -69,14 +76,17 @@ const sample_by_category = (cases: benchmark_case[], per_category: number, sampl
     const categories = [...new Set(cases.map((item) => item.category))];
     const used_corpora = new Set<string>();
     return categories.flatMap((category, category_index) => {
-        const unique = [...new Map(cases.filter((item) => item.category === category).map((item) => [item.corpus_id, item])).values()];
+        const members = cases.filter((item) => item.category === category);
+        const unique = [...new Map(members.map((item) => [item.corpus_id, item])).values()];
         if (!unique.length) return [];
         const start = sample_offset + (stagger_corpora ? category_index * per_category : 0);
         const rotated = Array.from({ length: unique.length }, (_, index) => unique[(start + index) % unique.length]);
         const ordered = stagger_corpora
             ? [...rotated.filter((item) => !used_corpora.has(item.corpus_id)), ...rotated.filter((item) => used_corpora.has(item.corpus_id))]
             : rotated;
-        const chosen = ordered.slice(0, Math.min(per_category, unique.length));
+        const selected_ids = new Set(ordered.map((item) => item.id));
+        const remaining = members.filter((item) => !selected_ids.has(item.id));
+        const chosen = [...ordered, ...remaining].slice(0, per_category);
         for (const item of chosen) used_corpora.add(item.corpus_id);
         return chosen;
     });
@@ -124,6 +134,8 @@ export function load_longmemeval(path: string, per_category: number, sample_offs
         official: true,
         source: "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned",
         path,
+        variant: Object.keys(longmem_files).find((key) => longmem_files[key] === basename(path)) ?? 'custom',
+        total_cases: cases.length,
         cases: sample_by_category(cases, per_category, sample_offset),
     };
 }
@@ -170,6 +182,8 @@ export function load_locomo(path: string, per_category: number, sample_offset = 
         official: true,
         source: "https://github.com/snap-research/locomo",
         path,
+        variant: 'locomo10',
+        total_cases: cases.length,
         cases: sample_by_category(cases, per_category, sample_offset, true),
     };
 }

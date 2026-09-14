@@ -21,6 +21,10 @@
   header template, and n8n's byte-exact ESLint config are explicit exceptions.
 - LongMemory uses one Hydrograph engine across the library, CLI, server, MCP,
   dashboard, and VS Code extension.
+- `answer_from_evidence` is an optional TypeScript answering adapter above recall,
+  using a caller-owned model and already-authorized evidence. It performs one
+  generation with bounded output and exact citation checks, no automatic search
+  or memory writes. Citation validity is not proof of semantic correctness.
 - The VS Code extension uses stable CLI JSON and workspace project scope; it
   does not duplicate engine behavior.
 - AI code changes are stored as compact redacted patches with provenance and
@@ -35,13 +39,26 @@
   Memory. Its TUI uses an original Library, Review, and Transfer utility flow.
 - Selected portable conversations can become deterministic Markdown LLM-Wiki
   assets with source provenance, immutable revisions, and optional agent binding.
-- The public benchmark path targets only embedded LongMemory and emits a v2
-  K=5 scorecard with auditable quality, retrieval, temporal, reliability,
-  efficiency, and explicit N/A fields for unsupported or unpriced metrics.
-- Associative benchmark hits include compact diffusion diagnostics. The matrix
-  retrieval redesign treats entity identity as a constraint, calibrates and
+- Ingestion persists canonical entity metadata and complete dated event summaries;
+  relationship indexes are owner/world scoped. Recall exposes source-linked
+  bounded conversation context. Session-coverage ranking is opt-in pending gains.
+- Identical-event replay preserves stored lifecycle, including after SQLite reopen;
+  late historical observations cannot automatically supersede newer valid-time
+  facts. Conversation appends avoid full-session membership scans. Evidence
+  selection caches candidate features and pairwise redundancy; context rendering
+  is query-local and rejects unrelated-session or future bundle sources.
+- Associative recall treats entity identity as a constraint, calibrates and
   whitens feature columns, sparsifies typed-graph seeds, and selects evidence
   sets under token and aspect-coverage constraints.
+- A bounded evidence-aware reranker uses cached speaker/assertion features,
+  simple exclusion handling, and vocabulary novelty for count/list queries.
+  It preserves strong counterevidence for named-subject questions and never
+  changes admission gates or stored facts. `LONGMEMORY_EVIDENCE_RERANK=0`
+  disables it; its fixed weights are not learned or calibrated probabilities.
+- Calendar-aware recall softly promotes explicit month/year matches and simple
+  relative-date evidence without hard time filtering. Its ordering policy and
+  the secondary English word-variant signal can be disabled independently using
+  `LONGMEMORY_CALENDAR_RERANK=0` and `LONGMEMORY_DERIVATION_RERANK=0`.
 - The npm CLI entry canonicalizes junction/symlink paths; the VS Code extension
   activates at startup and exposes a persistent bottom-right memory manager.
 - n8n uses a native community node package. OpenClaw uses a schema-valid Agent
@@ -50,9 +67,8 @@
   client surfaces. Runnable local examples launch the installed LongMemory CLI
   over stdio and leave process lifecycle to the framework.
 - Release `1.0.0` is test-free by policy: validation uses branding and release
-  artifact checks, TypeScript checks, official integration validators, the
-  deterministic benchmark smoke gate, dependency audit, production builds,
-  live API/MCP smoke checks, and package-content inspection.
+  artifact checks, TypeScript checks, official integration validators, dependency
+  audit, production builds, live API/MCP smoke checks, and package inspection.
 - Deployment files cover Docker, Compose, Heroku, Railway, Render,
   DigitalOcean, and a Vercel-hosted dashboard. Stateful API deployments require
   persistent `/data`; Vercel hosts only the dashboard.

@@ -114,4 +114,4 @@ These formulas make the memory dynamics explicit and testable. Confidence
 reflects the strength and reliability of evidence; contradictions actively
 suppress unreliable beliefs; decay protects important, grounded, reinforced
 memories while letting noise fade; and activation keeps the most relevant
-memories reachable. Formula changes must be benchmarked before production use.
+memories reachable.

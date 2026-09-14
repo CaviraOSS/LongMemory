@@ -93,22 +93,3 @@ cannot:
 3. resurrect a superseded memory;
 4. bypass contradiction or grounding gates; or
 5. scan or rewrite cold history.
-
-## Benchmark
-
-The `compression` benchmark constructs 100 candidates where the relevant item
-is absent from the baseline top 10. Repeated-pattern frequency moves it into the
-sketch-pruned top 10 while reducing the candidate set by 90%.
-
-The benchmark also gates:
-
-- Count-Min merge accuracy;
-- Frequent Directions row bounds;
-- Oja concept movement; and
-- zero strict stale-fact leakage under a deliberately adversarial sketch score.
-
-Run it with:
-
-```powershell
-pnpm exec tsx benchmarks/src/cli.ts --quick --only=compression --ci
-```

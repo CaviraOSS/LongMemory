@@ -35,7 +35,7 @@ import { plan_strict_recall, type RecallDeps, type RecallQuery } from './recall_
 import { normalize_recall_token, recall_document, recall_tokens, recall_vector, type RecallDocument, type RecallVector } from './recall_text.js';
 import { rank_indices, reciprocal_rank_fusion, select_diverse } from './fusion.js';
 import { matrix_fusion, select_sparse_seeds } from './matrix_fusion.js';
-import { default_rerank_depth, prepare_rerank_query, rerank_features, rerank_score } from './rerank.js';
+import { default_rerank_depth, prepare_rerank_query, rerank_features, rerank_score, prepare_evidence_query, evidence_support, evidence_adjustment, order_evidence, query_calendar_window, calendar_relevance } from './rerank.js';
 
 const day_ms = 86_400_000;
 const length_prior_saturation = 8;
@@ -118,6 +118,8 @@ export type AssociativeBreakdown = {
     polarity: number;
     entity_gate: number;
     graph_gain: number;
+    evidence_adjustment?: number;
+    calendar_adjustment?: number;
     score: number;
 };
 
@@ -153,6 +155,7 @@ export type AssociativeTrace = {
     context_tokens: number;
     budget: number;
     cold_scans: number;
+    evidence_rerank?: { enabled: boolean; candidates: number; subject: string | null; aggregate: boolean };
 };
 
 export type AssociativeRecallResult = {
@@ -223,11 +226,12 @@ function is_emotional(node: HydroNode): boolean {
 
 const exception_query_re = /\b(?:all|always|any|ever|every|never|none|only|smoothly|without (?:a )?(?:problem|issue))\b/i;
 const exception_evidence_terms = ['except', 'fail', 'failed', 'failure', 'problem', 'issue', 'tough', 'challenge', 'difficult', 'disappointed', 'disappointing', 'wrong', 'weird', 'broke', 'broken', 'unable'] as const;
+const exception_evidence_tokens = new Set(exception_evidence_terms.flatMap(recall_tokens));
 
 function polarity_relevance(node: HydroNode, enabled: boolean, query_terms: readonly string[]): number {
     if (!enabled) return 0;
     const evidence_terms = new Set(recall_tokens(`${node.content.raw} ${node.content.summary}`));
-    const failure_strength = exception_evidence_terms.reduce((sum, term) => sum + Number(evidence_terms.has(term)), 0);
+    const failure_strength = [...exception_evidence_tokens].reduce((sum, term) => sum + Number(evidence_terms.has(term)), 0);
     if (failure_strength === 0) return 0;
     const ignored = new Set(['all', 'always', 'any', 'ever', 'every', 'never', 'none', 'only', 'smooth', 'without']);
     const document = recall_document(node);
@@ -239,6 +243,8 @@ function polarity_relevance(node: HydroNode, enabled: boolean, query_terms: read
 }
 
 const referential_turn_re = /\b(?:did it|did that|just did it|just did that|that one|this one|the same (?:thing|place|one)|so did i|me too)\b/i;
+const pronoun_turn_re = /^(?:[^:\n]{1,32}:\s+)?(?:it|he|she|they|this|that|those|these)\b/i;
+const aggregate_query_re = /\b(?:how many|total|list|which (?:items|events|activities|places)|what activities|all (?:the |of )?(?:items|events|activities|places))\b/i;
 
 function conversation_bundles(
     anchors: readonly AssociativeItem[],
@@ -252,15 +258,24 @@ function conversation_bundles(
     for (const edge of edges) if (edge.type === 'refers_to') predecessor.set(edge.from, edge.to);
     const bundles = new Map<string, readonly HydroNode[]>();
     for (const anchor of anchors.slice(0, anchor_limit)) {
-        if (!referential_turn_re.test(anchor.node.content.raw)) continue;
+        const explicit = referential_turn_re.test(anchor.node.content.raw);
+        if (!explicit && !(anchor.node.content.raw.length <= 512 && pronoun_turn_re.test(anchor.node.content.raw))) continue;
         const conversation = conversation_of(anchor.node);
         if (!conversation) continue;
         const neighbours: HydroNode[] = [];
+        const visited = new Set([anchor.node.id]);
+        let tokens = 0;
         let current = anchor.node.id;
         for (let depth = 0; depth < max_depth; depth++) {
             const previous_id = predecessor.get(current);
             const previous = previous_id ? by_id.get(previous_id) : undefined;
-            if (!previous || conversation_of(previous) !== conversation) break;
+            if (!previous || visited.has(previous.id) || conversation_of(previous) !== conversation
+                || previous.world.world_id !== anchor.node.world.world_id
+                || previous.metadata.user_id !== anchor.node.metadata.user_id
+                || previous.temporal.observed_at > anchor.node.temporal.observed_at) break;
+            visited.add(previous.id);
+            tokens += count_tokens(memory_evidence_text(previous, { prefer_raw: true }));
+            if (!explicit && tokens > 256) break;
             neighbours.push(previous);
             current = previous.id;
         }
@@ -552,6 +567,10 @@ export function associative_recall(
 
     // Steps 1-7: combine every signal per admitted node.
     const limit = query.k == null ? null : Math.max(0, query.k);
+    const rerank_query = prepare_rerank_query(recall_tokens(query.text));
+    const calendar = process.env.LONGMEMORY_CALENDAR_RERANK !== '0' ? query_calendar_window(query.text) : null;
+    const candidate_limit = limit === null || limit === 0 || rerank_query.terms.length === 0
+        ? limit : Math.max(limit, default_rerank_depth);
     const ranked_entries: Array<{ item: AssociativeItem; order: number }> = [];
     for (let node_index = 0; node_index < admitted.length; node_index++) {
         const node = admitted[node_index];
@@ -588,13 +607,14 @@ export function associative_recall(
         const graph_gain = matrix_query && !seeds.has(node.id) ? weights.spread * spread_value : 0;
         const matrix_residual = 0.04 * (matrix_score - 0.5);
         const polarity_gain = matrix_query ? 0.2 * polarity : 0;
-        const score = matrix_query
+        const calendar_adjustment = 0.2 * calendar_relevance(calendar, node);
+        const score = (matrix_query
             ? direct_score + matrix_residual + graph_gain + polarity_gain
-            : direct_score + weights.spread * spread_value;
+            : direct_score + weights.spread * spread_value) + calendar_adjustment;
 
         if (limit === 0) continue;
         const last = ranked_entries.at(-1);
-        if (limit !== null && ranked_entries.length >= limit && last && score <= last.item.score) continue;
+        if (candidate_limit !== null && ranked_entries.length >= candidate_limit && last && score <= last.item.score) continue;
         const item: AssociativeItem = {
             node,
             score,
@@ -616,10 +636,11 @@ export function associative_recall(
                 polarity,
                 entity_gate,
                 graph_gain,
+                calendar_adjustment,
                 score,
             },
         };
-        if (limit === null) {
+        if (candidate_limit === null) {
             ranked_entries.push({ item, order: node_index });
             continue;
         }
@@ -632,29 +653,42 @@ export function associative_recall(
             else low = middle + 1;
         }
         ranked_entries.splice(low, 0, { item, order: node_index });
-        if (ranked_entries.length > limit) ranked_entries.pop();
+        if (ranked_entries.length > candidate_limit) ranked_entries.pop();
     }
 
     if (limit === null) ranked_entries.sort((left, right) => right.item.score - left.item.score || left.order - right.order);
     const ranked = ranked_entries.map((entry) => entry.item);
+    const evidence_enabled = process.env.LONGMEMORY_EVIDENCE_RERANK !== '0';
+    const evidence_query = evidence_enabled ? prepare_evidence_query(query.text, admitted) : null;
 
-    const rerank_query = prepare_rerank_query(recall_tokens(query.text));
     if (rerank_query.terms.length > 0 && ranked.length > 1) {
         const head = ranked.slice(0, Math.min(default_rerank_depth, ranked.length));
+        let strongest: AssociativeItem | undefined;
+        let strongest_score = -Infinity;
         for (const item of head) {
             const features = rerank_features(rerank_query.terms, rerank_query.pairs, recall_document(item.node));
             item.score = rerank_score(item.score, features);
+            if (item.score > strongest_score) { strongest = item; strongest_score = item.score; }
+            if (evidence_query) {
+                const adjustment = evidence_adjustment(evidence_support(evidence_query, item.node));
+                item.score += adjustment;
+                item.breakdown.evidence_adjustment = adjustment;
+            }
             item.breakdown.score = item.score;
         }
-        head.sort((left, right) => right.score - left.score);
-        for (let index = 0; index < head.length; index++) ranked[index] = head[index];
+        const counterevidence = evidence_query?.subject && evidence_query.subject !== 'user' && strongest
+            && evidence_support(evidence_query, strongest.node).attribution < 0 ? strongest : undefined;
+        const ordered = evidence_query ? order_evidence(head, evidence_query, counterevidence) : head.sort((left, right) => right.score - left.score);
+        for (let index = 0; index < ordered.length; index++) ranked[index] = ordered[index];
     }
+    const aggregate_query = process.env.LONGMEMORY_SESSION_COVERAGE === '1' && aggregate_query_re.test(query.text);
+    if (limit !== null && !aggregate_query) ranked.splice(limit);
 
-    const diverse = matrix_retrieval_enabled && deps.diversity === undefined && exception_query ? (() => {
+    const diverse = matrix_retrieval_enabled && deps.diversity === undefined && (exception_query || aggregate_query) ? (() => {
         const depth = Math.min(default_evidence_selection_depth, ranked.length);
         const head = ranked.slice(0, depth);
         const selected = select_evidence_set(head, {
-            limit: head.length,
+            limit: aggregate_query ? Math.min(limit ?? head.length, head.length) : head.length,
             token_budget: query.token_budget ?? Number.POSITIVE_INFINITY,
             query_terms: recall_tokens(query.text),
             exception_query,
@@ -663,13 +697,15 @@ export function associative_recall(
             token_cost: (item) => count_tokens(memory_evidence_text(item.node, { query_terms: plan.intent.terms })),
             polarity: (item) => item.breakdown.polarity,
             relevance: (item) => item.score,
+            group: aggregate_query ? (item) => conversation_of(item.node) || null : undefined,
         });
         const selected_ids = new Set(selected.map((item) => item.node.id));
         return [...selected, ...head.filter((item) => !selected_ids.has(item.node.id)), ...ranked.slice(depth)];
-    })() : select_diverse(ranked, {
+    })() : (evidence_query?.aggregate || calendar !== null) && deps.diversity === undefined ? ranked : select_diverse(ranked, {
         lambda: deps.diversity?.lambda ?? 0.85,
         similarity: (left, right) => memory_similarity(left.node, right.node),
     });
+    if (limit !== null) diverse.splice(limit);
     const bundles = matrix_retrieval_enabled && deps.edges?.length
         ? conversation_bundles(diverse, admitted, deps.edges)
         : new Map<string, readonly HydroNode[]>();
@@ -725,6 +761,12 @@ export function associative_recall(
         context_tokens: context.tokens_used,
         budget: context.budget,
         cold_scans: deps.index.cold_scans,
+        evidence_rerank: {
+            enabled: evidence_enabled,
+            candidates: rerank_query.terms.length > 0 && ranked_entries.length > 1 ? Math.min(default_rerank_depth, ranked_entries.length) : 0,
+            subject: evidence_query?.subject ?? null,
+            aggregate: evidence_query?.aggregate ?? false,
+        },
     };
 
     return { items: ranked, context, trace, hopfield };

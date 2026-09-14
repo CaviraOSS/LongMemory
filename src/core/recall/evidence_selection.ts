@@ -23,6 +23,7 @@ export type evidence_selection_options<item> = {
     token_cost: (item: item) => number;
     polarity: (item: item) => number;
     relevance: (item: item) => number;
+    group?: (item: item) => string | null;
     coverage_weight?: number;
     redundancy_weight?: number;
     polarity_weight?: number;
@@ -54,9 +55,15 @@ export function select_evidence_set<item>(
     const aspect_weights = new Map(aspects.map((aspect) => [aspect, Math.log(1 + (items.length + 0.5) / ((document_frequency.get(aspect) ?? 0) + 0.5))]));
     const aspect_total = [...aspect_weights.values()].reduce((sum, value) => sum + value, 0) || 1;
     const relevance = normalize(items.map(options.relevance));
+    const costs = items.map((item) => Math.max(0, options.token_cost(item)));
+    const polarities = items.map(options.polarity);
+    const item_groups = items.map((item) => options.group?.(item));
+    const similarity_sums = new Array<number>(items.length).fill(0);
+    const similarity_counts = new Array<number>(items.length).fill(0);
     const remaining = new Set(items.map((_, index) => index));
     const selected: number[] = [];
     const coverage = new Map<string, number>();
+    const groups = new Set<string>();
     let polarity_covered = false;
     let tokens_used = 0;
 
@@ -64,7 +71,7 @@ export function select_evidence_set<item>(
         let best = -1;
         let best_gain = Number.NEGATIVE_INFINITY;
         for (const index of remaining) {
-            const cost = Math.max(0, options.token_cost(items[index]));
+            const cost = costs[index];
             if (tokens_used + cost > token_budget) continue;
             let coverage_gain = 0;
             for (const aspect of aspects) {
@@ -72,11 +79,15 @@ export function select_evidence_set<item>(
                 const before = coverage.get(aspect) ?? 0;
                 coverage_gain += ((aspect_weights.get(aspect) ?? 0) / aspect_total) * (Math.exp(-before) - Math.exp(-(before + 1)));
             }
-            let redundancy = 0;
-            for (const prior of selected) redundancy += Math.max(0, options.similarity(items[index], items[prior]));
-            if (selected.length > 0) redundancy /= selected.length;
-            const polarity_gain = polarity_covered ? 0 : Math.max(0, options.polarity(items[index]));
-            const gain = relevance[index] + coverage_weight * coverage_gain + polarity_weight * polarity_gain - redundancy_weight * redundancy;
+            while (similarity_counts[index] < selected.length) {
+                const prior = selected[similarity_counts[index]++];
+                similarity_sums[index] += Math.max(0, options.similarity(items[index], items[prior]));
+            }
+            const redundancy = selected.length > 0 ? similarity_sums[index] / selected.length : 0;
+            const polarity_gain = polarity_covered ? 0 : Math.max(0, polarities[index]);
+            const group = item_groups[index];
+            const group_gain = group && !groups.has(group) ? coverage_weight / (groups.size + 1) : 0;
+            const gain = relevance[index] + coverage_weight * coverage_gain + group_gain + polarity_weight * polarity_gain - redundancy_weight * redundancy;
             if (gain > best_gain || (gain === best_gain && (best < 0 || index < best))) {
                 best = index;
                 best_gain = gain;
@@ -85,9 +96,11 @@ export function select_evidence_set<item>(
         if (best < 0) break;
         selected.push(best);
         remaining.delete(best);
-        tokens_used += Math.max(0, options.token_cost(items[best]));
+        const group = item_groups[best];
+        if (group) groups.add(group);
+        tokens_used += costs[best];
         for (const aspect of aspects) if (item_terms[best].has(aspect)) coverage.set(aspect, (coverage.get(aspect) ?? 0) + 1);
-        if (options.polarity(items[best]) > 0) polarity_covered = true;
+        if (polarities[best] > 0) polarity_covered = true;
     }
 
     return selected.map((index) => items[index]);

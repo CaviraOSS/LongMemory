@@ -16,26 +16,56 @@
 import { createMemory, type long_memory } from "../../../src/core/create_memory.js";
 import { memory_evidence_text } from "../../../src/core/recall/evidence.js";
 import { strict_recall_tokens } from "../../../src/core/recall/recall_text.js";
-import { create_embedding_environment } from "../../../src/core/embeddings/environment.js";
+import { load_embedding_environment } from "../../../src/core/embeddings/environment.js";
+import { create_named_embedding_provider } from "../../../src/core/embeddings/providers.js";
+import type { configured_embedding_provider, embedding_provider_config } from "../../../src/core/embeddings/types.js";
 import { benchmark_defaults } from "../config";
 import { benchmark_source_ref } from "../source_ref";
 import type { benchmark_event, benchmark_provider, benchmark_scope, ingest_result, provider_config, search_hit } from "../types";
 import { provider_metadata, scope_key, text } from "./shared";
+
+export class benchmark_embedding_error extends Error { }
 
 export class longmemory_provider implements benchmark_provider {
     readonly name = "longmemory" as const;
     readonly display_name = "longmemory";
     private memory: long_memory | null = null;
     private world_id: string | null = null;
-    private embeddings: ReturnType<typeof create_embedding_environment> = null;
+    private embeddings: { config: embedding_provider_config; embedding_provider: configured_embedding_provider; embedding_dimension: number } | null = null;
     private embedding_batch_size = 16;
     private embedding_fallback: string | null = null;
 
     async initialize(config: provider_config): Promise<void> {
         this.embedding_fallback = null;
-        this.embeddings = config.profile === "semantic" ? create_embedding_environment(process.env, {
-            logger: (message) => { this.embedding_fallback = message; },
-        }) : null;
+        this.embeddings = null;
+        if (config.profile === "semantic") {
+            const selected = load_embedding_environment();
+            if (!selected || selected.provider === 'synthetic' || selected.tier !== 'deep') {
+                throw new benchmark_embedding_error('semantic benchmarks require an explicit provider with tier=deep and no synthetic mixing');
+            }
+            selected.fallback = [];
+            selected.max_retries = 0;
+            const remote = create_named_embedding_provider(selected.provider, selected);
+            const guard = async <value>(operation: () => Promise<value>): Promise<value> => {
+                this.assert_semantic_provider();
+                try { return await operation(); }
+                catch (error) {
+                    this.embedding_fallback = error instanceof Error ? error.message : String(error);
+                    throw new benchmark_embedding_error(`embedding provider failed; benchmark stopped without fallback: ${this.embedding_fallback}`);
+                }
+            };
+            this.embeddings = {
+                config: selected,
+                embedding_dimension: selected.dimension,
+                embedding_provider: {
+                    name: remote.name, dimension: remote.dimension,
+                    embed: (input, context) => guard(() => remote.embed(input, context)),
+                    embed_many: (inputs, context) => guard(() => remote.embed_many
+                        ? remote.embed_many(inputs, context)
+                        : Promise.all(inputs.map((input) => remote.embed(input, context)))),
+                },
+            };
+        }
         const provider = this.embeddings?.config.provider;
         const batch_size = config.embedding_batch_size ?? (provider === "ollama" ? 128 : provider === "gemini" ? 100 : 16);
         if (!Number.isInteger(batch_size) || batch_size <= 0) throw new Error("LongMemory embedding batch size must be a positive integer");
@@ -120,20 +150,21 @@ export class longmemory_provider implements benchmark_provider {
         this.assert_semantic_provider();
         const items_by_id = new Map("items" in result ? result.items.map((item) => [item.node.id, item]) : []);
         const items = "context" in result ? result.context.items.map((node) => items_by_id.get(node.id)).filter((item) => item !== undefined) : [];
-        const evidence_by_id = new Map("context" in result ? result.context.evidence.map((item) => [item.id, item.text]) : []);
+        const evidence_by_id = new Map("context" in result ? result.context.evidence.map((item) => [item.id, item]) : []);
         const query_terms = strict_recall_tokens(query);
         const recall_diagnostics = "trace" in result && "admitted" in result.trace && "spread" in result.trace ? {
             retrieved: result.trace.retrieved,
             admitted: result.trace.admitted,
             spread: result.trace.spread,
             matrix: result.trace.matrix,
+            evidence_rerank: result.trace.evidence_rerank,
             bundled_items: "context" in result ? result.context.bundled_items : 0,
         } : null;
         return items.slice(0, limit).map((item) => ({
             id: item.node.id,
-            text: evidence_by_id.get(item.node.id) ?? memory_evidence_text(item.node, { query_terms }),
+            text: evidence_by_id.get(item.node.id)?.text ?? memory_evidence_text(item.node, { query_terms }),
             score: "score" in item ? item.score : "grounding_score" in item ? item.grounding_score : 0,
-            metadata: { ...item.node.metadata, timestamp: new Date(item.node.temporal.observed_at).toISOString(), raw: item, recall_diagnostics },
+            metadata: { ...item.node.metadata, timestamp: new Date(item.node.temporal.observed_at).toISOString(), raw: item, recall_diagnostics, evidence_sources: evidence_by_id.get(item.node.id)?.sources ?? [] },
         }));
     }
 
@@ -156,6 +187,6 @@ export class longmemory_provider implements benchmark_provider {
     }
 
     private assert_semantic_provider(): void {
-        if (this.embedding_fallback) throw new Error(`LongMemory semantic embedding fallback is not valid for official evaluation: ${this.embedding_fallback}`);
+        if (this.embedding_fallback) throw new benchmark_embedding_error(`embedding provider previously failed; benchmark stopped: ${this.embedding_fallback}`);
     }
 }

@@ -41,7 +41,7 @@
         "start": "node dist/server/index.js",
         "dev": "node --import tsx src/cli/index.ts status",
         "bench": "tsx benchmarks/src/cli.ts run --providers=longmemory --datasets=smoke --no-resume",
-        "bench:full": "tsx benchmarks/src/official.ts --providers=longmemory --per-category=3 --no-resume",
+        "bench:full": "tsx benchmarks/src/official.ts --providers=longmemory --per-category=10000 --cutoffs=5 --no-resume",
         "bench:ci": "tsx benchmarks/src/cli.ts run --providers=longmemory --datasets=smoke --run-id=ci-smoke --out=benchmarks/runs/ci-smoke --no-resume --require-all --gate --no-color",
         "bench:ci:full": "tsx benchmarks/src/official.ts --providers=longmemory --per-category=3 --run-id=ci-public --out=benchmarks/runs/ci-public --no-resume --require-all --gate --no-color",
         "bench:data": "tsx benchmarks/src/cli.ts data",
@@ -53,6 +53,7 @@
         "bench:judge:copilot": "tsx benchmarks/src/cli.ts run --providers=longmemory --datasets=smoke --answerer=copilot-answerer:gpt-5.6-luna --judge=copilot-judge:gpt-5.6-luna --no-resume",
         "bench:judge:codex": "pnpm bench:judge:copilot",
         "bench:typecheck": "tsc --noEmit -p benchmarks/tsconfig.json",
+        "bench:check": "tsx benchmarks/src/check.ts",
         "serve": "tsx src/server/index.ts",
         "extension:check": "pnpm --dir apps/vscode-extension check",
         "extension:build": "pnpm --dir apps/vscode-extension compile",
@@ -67,7 +68,8 @@
         "branding:apply": "node tools/branding.mjs --apply",
         "branding:check": "node tools/branding.mjs",
         "typecheck": "tsc --noEmit -p tsconfig.json",
-        "release:check": "pnpm branding:check && pnpm release:files && pnpm sdk:python:check && pnpm dashboard:audit && pnpm typecheck && pnpm extension:check && pnpm integration:check && pnpm bench:typecheck && pnpm bench:ci && pnpm build && pnpm extension:build && npm --prefix dashboard run build"
+        "recall:check": "tsx tools/check-recall.ts",
+        "release:check": "pnpm branding:check && pnpm release:files && pnpm sdk:python:check && pnpm dashboard:audit && pnpm typecheck && pnpm recall:check && pnpm extension:check && pnpm integration:check && pnpm bench:typecheck && pnpm bench:ci && pnpm build && pnpm extension:build && npm --prefix dashboard run build"
     },
     "devDependencies": {
         "@types/better-sqlite3": "^7.6.13",
@@ -83,6 +85,7 @@
         "better-sqlite3": "^12.11.1",
         "mammoth": "^1.12.0",
         "pdf-parse": "^2.4.5",
+        "stemmer": "^2.0.1",
         "turndown": "^7.2.4",
         "zod": "^4.4.3"
     }
