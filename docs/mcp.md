@@ -79,6 +79,35 @@ versions, bindings, or archive versions. CodeGraph is read-only and provides
 symbol search, callers, callees, and reverse impact paths from persisted source
 snapshots.
 
+### Recall output
+
+`longmemory_recall` returns `context` (`text`, `tokens_used`, `budget`) and
+`hits` (`id`, `observed_at`, `score`, `status`, `text`) by default.
+`observed_at` is epoch milliseconds. Pass `k` (1–1000) to limit hits; compact
+output defaults to 8. `token_budget` limits context text, while each hit keeps
+its summary or raw text, so it is not a total response size limit.
+
+```json
+{
+  "project_id": "my-project",
+  "query": "release checklist",
+  "mode": "strict",
+  "k": 5,
+  "token_budget": 300
+}
+```
+
+Clients that consume full nodes or traces should pass `verbose: true`. This
+returns the existing `items`/`context`/`trace` structure, or `timeline`/`trace`
+for historical recall, with the existing permission filtering. Without `k`,
+verbose output keeps the engine's candidate count. Vectors are omitted from
+recall responses unless both `verbose: true` and `include_vectors: true` are
+set, including when `LONGMEMORY_MCP_INCLUDE_VECTORS` is enabled globally.
+
+Historical recall keeps the engine's chronological ordering. Its compact
+output applies `k` to the first timeline entries and builds budgeted context
+from them; verbose output returns the complete timeline.
+
 Asset catalog calls discover governed Chat Memory, Skill, LLM-Wiki, and
 CodeGraph records or assemble a target-specific loadout. Asset management is a
 write tool, requires owner or explicit `manage` ACL, and is blocked by MCP

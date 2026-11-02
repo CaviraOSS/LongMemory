@@ -20,6 +20,15 @@ the end of this file for historical context.
 
 ## [Unreleased]
 
+### Recall response size
+
+- MCP recall defaults to budgeted context and 8 concise hits, with optional
+  `k` and `verbose: true` for full nodes and diagnostic traces.
+- CLI recall supports `--brief` for concise JSON and `--full` for its existing
+  detailed structure. Recall vectors require explicit `include_vectors: true`
+  in verbose MCP output or `--include-vectors` in detailed CLI output.
+- CLI hits include observation dates; CLI and MCP share hit formatting.
+
 ### Python SDK and package registry migration
 
 - Added `packages/longmemory-py`, a zero-runtime-dependency Python HTTP client

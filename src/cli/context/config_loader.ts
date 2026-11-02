@@ -24,7 +24,7 @@ export type local_cli_config = {
     connectors?: Record<string, Record<string, unknown>>;
 };
 
-const bool_flags = new Set(['json', 'jsonl', 'pretty', 'compact', 'no-color', 'silent', 'interactive', 'dry-run', 'help', 'version', 'debug', 'mcp-http', 'read-only', 'all', 'stdin', 'force']);
+const bool_flags = new Set(['json', 'jsonl', 'pretty', 'compact', 'no-color', 'silent', 'interactive', 'dry-run', 'help', 'version', 'debug', 'mcp-http', 'read-only', 'all', 'stdin', 'force', 'brief', 'full', 'include-vectors']);
 const global_flags = new Set(['db', 'project', 'user', 'json', 'jsonl', 'pretty', 'compact', 'no-color', 'silent', 'interactive', 'dry-run', 'token-budget', 'cwd', 'help', 'version', 'debug']);
 
 export function parse_argv(argv: string[]): parsed_cli {

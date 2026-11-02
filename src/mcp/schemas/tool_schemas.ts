@@ -59,7 +59,9 @@ export const recall_schema = {
     user_id: optional_text,
     mode: z.enum(['strict', 'historical', 'associative', 'world_grounded']),
     token_budget,
-    include_vectors: z.boolean().optional().describe('Include raw embedding vectors in the response (default false)'),
+    k: z.number().int().min(1).max(1000).optional().describe('Maximum hits (default 8 in compact output); historical mode limits compact hits only'),
+    verbose: z.boolean().optional().describe('Return full recall items or timeline and diagnostic trace (default false)'),
+    include_vectors: z.boolean().optional().default(false).describe('Include raw embedding vectors with verbose output (default false)'),
 };
 
 export const ingest_schema = {
@@ -147,4 +149,3 @@ export const manage_asset_schema = {
     expires_at: z.number().finite().optional(), labels: z.array(z.string().trim().min(1)).max(100).optional(),
     payload: z.record(z.string(), z.unknown()).optional(), metadata: z.record(z.string(), z.unknown()).optional(),
 };
-
