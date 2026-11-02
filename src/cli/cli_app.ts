@@ -82,7 +82,7 @@ const help = {
     global_flags: ['--db <path>', '--project <id>', '--user <id>', '--json', '--jsonl', '--pretty', '--compact', '--no-color', '--silent', '--interactive', '--dry-run', '--token-budget <number>', '--cwd <path>'],
     commands: [
         'status', 'init', 'doctor', 'serve [--host <host>] [--port <port>] [--mcp-http]', 'mcp [--read-only]',
-        'ingest "memory" [--stdin] [--type <type>] [--source <source>]', 'recall "query" [--mode <mode>]', 'explain <memory-id>',
+        'ingest "memory" [--stdin] [--type <type>] [--source <source>]', 'recall "query" --mode <mode> [--k <n>] [--brief | --full] [--include-vectors]', 'explain <memory-id>',
         'timeline <entity|project|memory>', 'memory list [--limit <n>] [--status <status>]',
         'maintenance decay [--limit <n>] [--all]', 'maintenance reinforce <memory-id>',
         'bench', 'project <init|context|handoff|decisions|tasks|conflicts>',

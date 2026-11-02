@@ -18,6 +18,7 @@ import type { mcp_runtime } from '../runtime.js';
 import { recall_schema } from '../schemas/tool_schemas.js';
 import { recall_permission, resolve_project } from '../security/permissions.js';
 import { run_audited_tool } from './common.js';
+import { compact_recall } from '../../core/recall/response.js';
 
 const sanitize_recall = (result: unknown): unknown => {
     if (!result || typeof result !== 'object') return result;
@@ -49,19 +50,21 @@ const sanitize_recall = (result: unknown): unknown => {
 
 export function register_recall_tool(server: mcp_server_sdk, runtime: mcp_runtime): void {
     server.registerTool('longmemory_recall', {
-        description: 'Recall memory through the selected Hydrograph mode without bypassing gates.',
+        description: 'Recall memory as budgeted context and concise hits. Use k to limit hits and verbose for full diagnostics; recall gates always apply.',
         inputSchema: recall_schema,
         annotations: { readOnlyHint: true, idempotentHint: true },
     }, async (input) => run_audited_tool(runtime, 'longmemory_recall', input, async () => {
         const project_id = resolve_project(runtime.access, input.project_id);
         const world_id = project_id ? (await runtime.project(project_id)).getProject(project_id).root_world_id : undefined;
+        const k = input.k ?? (input.verbose ? undefined : 8);
         const result = await runtime.memory.recall({
             text: input.query,
             mode: input.mode,
             token_budget: input.token_budget,
+            k,
             world_id,
             permission_context: recall_permission(runtime.access, input.user_id, project_id ?? undefined),
         });
-        return sanitize_recall(result);
+        return input.verbose ? sanitize_recall(result) : compact_recall(result, k, input.token_budget);
     }));
 }

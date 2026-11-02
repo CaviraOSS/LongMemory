@@ -126,6 +126,26 @@ longmemory recall \
 
 `--mode` is required and accepts `strict`, `historical`, `associative`, or `world_grounded`. Optional flags include `--recorded-time`, `--at`, `--world`, and `--k`.
 
+For agent queries, use `--brief`:
+
+```bash
+longmemory recall "release checklist" --project my-project --mode strict \
+  --k 5 --token-budget 300 --brief --json
+```
+
+Brief JSON contains `ok`, `mode`, `query`, `context` (`text`, `tokens_used`,
+`budget`) and `hits` (`id`, `observed_at`, `score`, `status`, `text`). Dates are
+epoch milliseconds. Brief output defaults to 8 hits; `--k` accepts 1–1000.
+`--token-budget` bounds context text, not the total response or hit text.
+Historical brief output keeps the first `k` chronological timeline entries
+and builds budgeted context from them.
+
+The default detailed JSON fields remain available for existing scripts;
+`--full` explicitly selects this output. Recall omits nested vectors by
+default. Use `--full --include-vectors` to include them for diagnostics.
+`--brief` cannot be combined with `--full` or `--include-vectors`.
+The existing global `--compact` flag continues to control JSON whitespace.
+
 ## Explain
 
 ```bash

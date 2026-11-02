@@ -17,11 +17,7 @@ import type { CallToolResult as call_tool_result } from '@modelcontextprotocol/s
 import type { mcp_runtime } from '../runtime.js';
 import { assert_tool_allowed } from '../security/permissions.js';
 import type { mcp_tool_name } from '../security/tool_allowlist.js';
-
-// Raw embedding vectors are not useful to an MCP client (similarity is already
-// exposed via score/breakdown) and can be thousands of tokens per node, repeated
-// across every place a node is nested in a response. Hidden by default.
-const strip_vectors_replacer = (key: string, value: unknown) => key === 'vectors' ? undefined : value;
+import { strip_vectors_replacer } from '../../core/recall/response.js';
 
 const include_vectors_by_default = (env: NodeJS.ProcessEnv = process.env) => {
     const raw = env.LONGMEMORY_MCP_INCLUDE_VECTORS?.trim().toLowerCase();
