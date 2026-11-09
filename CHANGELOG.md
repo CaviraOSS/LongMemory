@@ -56,6 +56,8 @@ the end of this file for historical context.
 
 ### Fixes
 
+- Notes with newline-separated preferences or facts now keep each claim in
+  stored summaries without splitting wrapped lines into separate statements.
 - Embedded project-scoped writes. `longmemory_ingest` with a `project_id`,
   `longmemory_remember_decision` and connector imports go through
   `applyImportPlan`, which stored every node without a semantic vector, so
