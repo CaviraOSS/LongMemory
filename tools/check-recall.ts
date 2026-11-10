@@ -14,6 +14,7 @@
 
 import assert from 'node:assert/strict';
 import { createMemory } from '../src/index.js';
+import { extract_claims } from '../src/core/engine/claim_extractor.js';
 
 async function main() {
     const memory = createMemory({ store: 'memory', embedding_dimension: 2 });
@@ -40,6 +41,12 @@ async function main() {
     assert.ok(worlds.some((world) => world.id === 'release-check' || world.name === 'release-check'), 'the ingested world should be listed');
 
     await memory.close();
+    assert.deepEqual(extract_claims('I prefer dark mode\nI prefer light mode').map((claim) => claim.object), ['dark mode', 'light mode']);
+    assert.deepEqual(extract_claims('I prefer dark mode because it reduces eye\nstrain.').map((claim) => claim.object), ['dark mode because it reduces eye strain']);
+    assert.deepEqual(extract_claims('- I prefer dark mode\n- Alice is in Paris').map((claim) => [claim.predicate, claim.object]), [
+        ['prefers', 'dark mode'],
+        ['located_in', 'paris'],
+    ]);
     const preferences = createMemory({ store: 'memory', embedding_dimension: 2 });
     try {
         const at = Date.now() - 1000;

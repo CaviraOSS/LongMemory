@@ -80,7 +80,15 @@ export function extract_claims(text: string): ExtractedClaim[] {
     const prose = text.split(/\r?\n/).filter((line) => !line.trim().startsWith('|')).join('\n');
     const protected_text = prose.replace(/[\p{L}\p{N}.!#$%&'*+/=?^_`{|}~-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/gu, (email) => email.replaceAll('.', '<period>').replaceAll('!', '<exclaim>').replaceAll('?', '<question>'))
         .replace(/(?<=\d)\.(?=\d)/g, '<period>').replace(/\b(Dr|Mr|Mrs|Ms|Prof|[A-Z])\./g, '$1<period>');
-    const statements = protected_text.split(/[.!?]+/)
+    const lines = protected_text.split(/\n+/).reduce<string[]>((joined, line) => {
+        const candidate = line.replace(/^\s*(?:[-*+]|\d+[.)])\s+/, '').replace(/^\s*(?:user|assistant|system|tool|function):\s*/i, '').trim();
+        const starts_claim = [preference, moved_location, location, copula, first_person, contact, mode_change].some((pattern) => pattern.test(candidate));
+        if (!joined.length || starts_claim || /^\s*(?:[-*+]|\d+[.)])\s+/.test(line)) joined.push(line);
+        else joined[joined.length - 1] += ` ${line.trim()}`;
+        return joined;
+    }, []);
+    const statements = lines
+        .flatMap((line) => line.split(/[.!?]+/))
         .flatMap((item) => item.split(/,\s*(?=(?:please\s+)?(?:ping|contact|message|reach)\s+me\b)/i))
         .map((item) => item.replaceAll('<period>', '.').replaceAll('<exclaim>', '!').replaceAll('<question>', '?').replace(/^\s*(?:user|assistant|system|tool|function):\s*/i, '').trim()).filter(Boolean);
     const prose_claims = statements.map((statement): ExtractedClaim => {
