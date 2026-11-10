@@ -685,14 +685,21 @@ validator.
                 </a>
             </td>
             <td align="center">
+                <a href="https://github.com/GPT-AGI">
+                    <img src="https://avatars.githubusercontent.com/u/181050363?v=4" width="100;" alt="GPT-AGI"/>
+                    <br />
+                    <sub><b>Ting Zhang</b></sub>
+                </a>
+            </td>
+		</tr>
+		<tr>
+            <td align="center">
                 <a href="https://github.com/RockinPaul">
                     <img src="https://avatars.githubusercontent.com/u/3741448?v=4" width="100;" alt="RockinPaul"/>
                     <br />
                     <sub><b>Paul Zarudnev</b></sub>
                 </a>
             </td>
-		</tr>
-		<tr>
             <td align="center">
                 <a href="https://github.com/oantoshchenko">
                     <img src="https://avatars.githubusercontent.com/u/1749531?v=4" width="100;" alt="oantoshchenko"/>
@@ -728,6 +735,8 @@ validator.
                     <sub><b>EikoocS</b></sub>
                 </a>
             </td>
+		</tr>
+		<tr>
             <td align="center">
                 <a href="https://github.com/Dhravya">
                     <img src="https://avatars.githubusercontent.com/u/63950637?v=4" width="100;" alt="Dhravya"/>
@@ -735,8 +744,6 @@ validator.
                     <sub><b>Dhravya Shah</b></sub>
                 </a>
             </td>
-		</tr>
-		<tr>
             <td align="center">
                 <a href="https://github.com/dflor003">
                     <img src="https://avatars.githubusercontent.com/u/103017?v=4" width="100;" alt="dflor003"/>
@@ -772,6 +779,8 @@ validator.
                     <sub><b>Anush</b></sub>
                 </a>
             </td>
+		</tr>
+		<tr>
             <td align="center">
                 <a href="https://github.com/annelchavez-11594">
                     <img src="https://avatars.githubusercontent.com/u/271067077?v=4" width="100;" alt="annelchavez-11594"/>
@@ -779,8 +788,6 @@ validator.
                     <sub><b>Annel Chavez</b></sub>
                 </a>
             </td>
-		</tr>
-		<tr>
             <td align="center">
                 <a href="https://github.com/atao2004">
                     <img src="https://avatars.githubusercontent.com/u/148929819?v=4" width="100;" alt="atao2004"/>
