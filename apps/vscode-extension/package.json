@@ -2,7 +2,7 @@
     "name": "longmemory-vscode",
     "displayName": "LongMemory",
     "description": "Native Hydrograph memory workflows for VS Code",
-    "version": "0.2.0",
+    "version": "2.1.0",
     "publisher": "CaviraOSS",
     "license": "Apache-2.0",
     "repository": {

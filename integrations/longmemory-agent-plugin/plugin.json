@@ -1,7 +1,7 @@
 {
     "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
     "name": "longmemory",
-    "version": "0.2.0",
+    "version": "2.1.0",
     "description": "Durable personal and team memory for Cursor, GitHub Copilot, and Devin/Windsurf.",
     "author": {
         "name": "CaviraOSS",

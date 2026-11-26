@@ -1,6 +1,6 @@
 {
     "name": "@caviraoss/kilo-longmemory",
-    "version": "0.1.0",
+    "version": "2.1.0",
     "description": "Bounded automatic LongMemory context for Kilo Code.",
     "license": "Apache-2.0",
     "type": "module",

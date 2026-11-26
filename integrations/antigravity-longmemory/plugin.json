@@ -2,7 +2,7 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "longmemory",
   "displayName": "LongMemory",
-  "version": "0.2.0",
+  "version": "2.1.0",
   "description": "Durable personal and team memory for coding agents: context, recall, decisions, tasks, and governed assets.",
   "logo": "assets/logo.svg",
   "suggestedPrompts": [

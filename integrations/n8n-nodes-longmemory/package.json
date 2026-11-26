@@ -1,6 +1,6 @@
 {
     "name": "@cavira/n8n-nodes-longmemory",
-    "version": "0.1.0",
+    "version": "2.1.0",
     "description": "LongMemory community node for n8n workflows and AI agents",
     "license": "MIT",
     "homepage": "https://github.com/CaviraOSS/LongMemory",

@@ -1,6 +1,6 @@
 {
     "name": "longmemory",
-    "version": "1.0.0",
+    "version": "2.1.0",
     "description": "LongMemory Hydrograph TypeScript package: library, CLI, self-hosted API server, and benchmark harness.",
     "license": "Apache-2.0",
     "author": "CaviraOSS",
