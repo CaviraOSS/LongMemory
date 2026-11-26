@@ -45,7 +45,6 @@
         "test:tools": "node --test tools/install-local.test.mjs tools/check-integrations.test.mjs tools/sync-integrations.test.mjs",
         "integration:sync": "node tools/sync-integrations.mjs",
         "test:integrations": "node --test tools/sync-integrations.test.mjs tools/check-integrations.test.mjs tools/install-local.test.mjs",
-        "test:kilo": "tsx --test \"integrations/kilo-longmemory/test/**/*.test.ts\"",
         "dev": "node --import tsx src/cli/index.ts status",
         "test": "tsx --test \"src/**/*.test.ts\"",
         "bench": "tsx benchmarks/src/cli.ts run --providers=longmemory --datasets=smoke --no-resume",

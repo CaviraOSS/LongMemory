@@ -27,3 +27,4 @@ benchmarks/runs/
 .longmemory
 # superpowers SDD scratch
 .superpowers/
+superpowers/

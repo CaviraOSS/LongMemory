@@ -22,7 +22,9 @@
 [![Container](https://img.shields.io/badge/GHCR-longmemory-2496ED?logo=docker)](https://github.com/CaviraOSS/LongMemory/pkgs/container/longmemory)
 [![License](https://img.shields.io/github/license/CaviraOSS/LongMemory)](LICENSE)
 
-![LongMemory dashboard](.github/longmemory.gif)
+[![Watch Video](https://img.youtube.com/vi/tREFsh3J0b0/maxresdefault.jpg)](https://www.youtube.com/watch?v=tREFsh3J0b0)
+
+<a href="https://trendshift.io/repositories/15645?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-15645" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/15645/daily?language=TypeScript" alt="CaviraOSS%2FLongMemory | Trendshift" width="250" height="55"/></a>
 
 LongMemory is a cognitive memory engine for LLM applications and autonomous agents.
 
