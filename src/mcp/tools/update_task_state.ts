@@ -3,15 +3,14 @@
 *     / /   ____  ____  ____ _/  |/  /__  ____ ___  ____  _______  __
 *    / /   / __ \/ __ \/ __ `/ /|_/ / _ \/ __ `__ \/ __ \/ ___/ / / /
 *   / /___/ /_/ / / / / /_/ / /  / /  __/ / / / / / /_/ / /  / /_/ /
-*  /_____/\____/_/ /_/\__, /_/  /_/\___/_/ /_/ /_/\____/_/   \__, /
-                     /____/                                 /____/
- *
- *  cavira oss (c) 2026  -  nullure (c) 2026
- *  ----------------------------------------------------------
- *  file  : src/mcp/tools/update_task_state.ts
- *  usage : implements the LongMemory update task state component
- */
-
+*  /_____/\____/_/ /_/\__, /_/  /_/\___/_/ /_/ /_/ /____/_/   \__, /
+*                      /____/                                 /____/
+*
+*  cavira oss (c) 2026  -  nullure (c) 2026
+*  ----------------------------------------------------------
+*  file  : src/mcp/tools/update_task_state.ts
+*  usage : implements the LongMemory update task state component
+*/
 
 import type { McpServer as mcp_server_sdk } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { mcp_runtime } from '../runtime.js';
@@ -25,9 +24,11 @@ export function register_update_task_state_tool(server: mcp_server_sdk, runtime:
         inputSchema: update_task_state_schema,
         annotations: { readOnlyHint: false, destructiveHint: false },
     }, async (input) => run_audited_tool(runtime, 'longmemory_update_task_state', input, async () => {
-        assert_write_allowed(runtime.access, 'longmemory_update_task_state');
-        const project_id = resolve_project(runtime.access, input.project_id)!;
-        const manager = await runtime.project(project_id);
+        const space = runtime.write_scope(input.space);
+        const child = runtime.for_space(space.id);
+        assert_write_allowed(child.access, 'longmemory_update_task_state');
+        const project_id = resolve_project(child.access, input.project_id)!;
+        const manager = await child.project(project_id, { create: true });
         const task_memory_id = await manager.ingestProjectEvent(project_id, {
             kind: 'task', text: input.task, topic: input.task, status: input.status,
             replace_current: true, files_touched: input.files_touched, next_actions: input.next_steps,
@@ -38,6 +39,6 @@ export function register_update_task_state_tool(server: mcp_server_sdk, runtime:
             status: input.status, files_touched: input.files_touched, next_actions: input.next_steps,
             replace_current: true, metadata: { known_failures: input.errors_seen ?? [], task_memory_id },
         });
-        return { project_id, task_memory_id, continuity_memory_id, status: input.status };
+        return { project_id, task_memory_id, continuity_memory_id, status: input.status, space: space.id, space_label: space.label };
     }));
 }

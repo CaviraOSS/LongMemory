@@ -14,6 +14,8 @@
 
 
 export const mcp_tool_names = [
+    'longmemory_who_am_i',
+    'longmemory_list_spaces',
     'longmemory_project_context',
     'longmemory_recall',
     'longmemory_ingest',

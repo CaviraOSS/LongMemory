@@ -14,13 +14,41 @@
 
 # LongMemory for Claude Code
 
-A native Claude Code plugin containing an LongMemory skill and local stdio MCP server configuration.
+A native Claude Code plugin containing the shared LongMemory skill and a local
+stdio MCP server configuration. It has no hooks or executable plugin code.
 
-Prerequisite: install and initialize the `longmemory` CLI.
+Prerequisite: install the `longmemory` CLI. For a shared server, run
+`longmemory auth:login --server <url>` once; the stdio server reads
+`~/.config/longmemory/client.json`. Local mode needs no login.
+
+## Install from the repository marketplace
+
+From a checkout of this repository:
+
+```bash
+claude plugin marketplace add ./
+claude plugin install longmemory@longmemory
+```
+
+For a published repository, pass the GitHub repository instead:
+
+```bash
+claude plugin marketplace add CaviraOSS/LongMemory
+claude plugin install longmemory@longmemory
+```
+
+## Validate
 
 ```bash
 claude plugin validate ./integrations/claude-code-longmemory --strict
+claude plugin validate ./.claude-plugin/marketplace.json --strict
+```
+
+## Develop against the checkout
+
+```bash
 claude --plugin-dir ./integrations/claude-code-longmemory
 ```
 
-For permanent distribution, add this plugin to a Claude Code marketplace and install it with `claude plugin install`.
+The plugin-scoped tools appear as `longmemory_*` (or a host-prefixed variant);
+the shared skill resolves them by canonical suffix.

@@ -20,6 +20,10 @@ These ready-to-merge templates connect hosts that support MCP without requiring 
 
 Merge `cline.json` into the MCP settings opened from Cline's **MCP Servers > Configure** panel, or use it as `~/.cline/mcp.json` with Cline CLI. The server starts through local stdio and leaves all tools approval-gated.
 
+## Cursor
+
+Merge `cursor.json` into `~/.cursor/mcp.json`, or into the project's `.cursor/mcp.json`. Cursor starts the server over local stdio; the template stores no credentials.
+
 ## Continue
 
 Copy `continue.yaml` into the workspace's `.continue/mcpServers/` directory. LongMemory tools are available in Continue agent mode.
@@ -33,3 +37,11 @@ longmemory serve --mcp-http
 ```
 
 The sample assumes LibreChat runs in Docker and LongMemory runs on the host. Change both `url` and `mcpSettings.allowedAddresses` together for another deployment topology.
+
+## Windsurf and Devin
+
+Merge `windsurf.json` into `~/.config/devin/mcp_config.json`. The template uses the `mcpServers` container and local stdio; keep workspace-specific instructions in `.windsurf/rules/`.
+
+## VS Code
+
+Merge `vscode.json` into the workspace's `.vscode/mcp.json`, or add it to a user-level `mcp.json`. VS Code uses the `servers` container and requires `type: "stdio"`; `code --add-mcp` is the CLI path for user-level servers.

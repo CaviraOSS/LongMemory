@@ -25,3 +25,5 @@ benchmarks/runs/
 .next
 *.env
 .longmemory
+# superpowers SDD scratch
+.superpowers/

@@ -35,7 +35,7 @@ Bundle: [`longmemory-agent-plugin`](longmemory-agent-plugin)
 This is an Agent Plugins 1.0 bundle with:
 
 - `plugin.json` validated against the official plugin schema
-- `mcp.json` connecting to LongMemory's Streamable HTTP MCP endpoint
+- `mcp.json` launching the installed `longmemory` CLI over stdio
 - `skills/longmemory/SKILL.md` teaching safe memory use
 
 ```bash
@@ -45,7 +45,7 @@ openclaw plugins inspect longmemory
 openclaw gateway restart
 ```
 
-Set `LONGMEMORY_API_KEY` in the OpenClaw gateway environment. Override `mcp.servers.longmemory` in operator configuration when LongMemory is not at `http://127.0.0.1:7331/mcp`.
+The bundle stores no credentials. For a shared team server, run `longmemory auth:login --server <url> --token-file <path>`; the stdio proxy reads `~/.config/longmemory/client.json`. For local memory, no login is required. Override the `longmemory` server `command` or `args` in operator configuration when the CLI is not on `PATH`.
 
 The same standards-based bundle can be consumed by Agent Plugins 1.0 hosts including Cursor and compatible VS Code agent environments. Prefer this shared bundle over host-specific copies when the host implements the standard directly.
 
@@ -83,6 +83,41 @@ gemini extensions link ./integrations/gemini-cli-longmemory
 ```
 
 Restart Gemini CLI after linking or installing the extension.
+
+## Antigravity
+
+Plugin: [`antigravity-longmemory`](antigravity-longmemory)
+
+The native Antigravity plugin bundles a local stdio MCP entry, an always-on memory rule, and the shared skill. It contains no credentials; the stdio proxy reads the LongMemory client config.
+
+```bash
+agy plugin validate --strict ./integrations/antigravity-longmemory
+agy plugin install ./integrations/antigravity-longmemory
+agy plugin list
+```
+
+## Kilo Code
+
+Plugin: [`kilo-longmemory`](kilo-longmemory)
+
+The Kilo plugin adds a local stdio MCP entry when the config has none, injects one bounded cached context packet per task, and fails open on memory errors. Load it from the `plugin` array in `kilo.json` or `kilo.jsonc`.
+
+## OpenCode
+
+Plugin: [`opencode-longmemory`](opencode-longmemory)
+
+The OpenCode V2 plugin injects one bounded, untrusted LongMemory project brief
+for each new user task and caches it through tool-driven follow-up requests. It
+uses the local CLI in dry-run mode by default, or the authenticated shared
+project-context API when configured for a team.
+
+```bash
+npm --prefix ./integrations/opencode-longmemory install
+```
+
+Add the plugin directory and the included local MCP server template to the
+target project's `opencode.jsonc`, then restart OpenCode. See the package
+README for local and shared-server configuration.
 
 ## Cline, Continue, and LibreChat
 
@@ -137,8 +172,24 @@ For hosted deployments, switch the framework's native client to Streamable HTTP 
 - The n8n package uses n8n's credential type and request helper.
 - The OpenClaw bundle contains no in-process runtime code.
 - Claude Code, Codex, and Gemini CLI packages contain no hooks or executable runtime code.
+- Antigravity and Kilo packages contain no credentials; both ship secret-free stdio MCP entries.
+- Copilot and Windsurf workspace packs contain no credentials; both ship secret-free stdio MCP entries.
 - Local editor integrations use stdio and leave tool approval to the host.
 - Framework examples use native MCP lifecycle management and do not embed LongMemory storage.
 - The LibreChat template resolves its bearer token from `LONGMEMORY_API_KEY`.
 - MCP writes remain governed by LongMemory's project scope, allowlist, read-only mode, and audit log.
 - External host stores are never modified by LongMemory.
+
+## Host matrix
+
+All seven host artifacts are secret-free; credentials live in the client config (`~/.config/longmemory/client.json`, `0600`) or host secret stores.
+
+| Package | Host | Transport | Install |
+|---|---|---|---|
+| `claude-code-longmemory` | Claude Code | stdio | marketplace or `--plugin-dir` |
+| `kilo-longmemory` | Kilo Code | stdio | `file://` plugin entry plus JSONC merge |
+| `antigravity-longmemory` | Antigravity | stdio | `agy plugin install` |
+| `longmemory-agent-plugin` | Cursor, Windsurf, Copilot | stdio | Agent Plugins install |
+| `copilot-longmemory` | Copilot | stdio | workspace pack (`.vscode/mcp.json` + `.github/instructions/`) |
+| `windsurf-longmemory` | Windsurf/Devin | stdio | `mcp_config.json` + `.windsurf/rules/longmemory.md` |
+| `mcp-configs` | Cline, Continue, LibreChat, Cursor, Windsurf, VS Code | stdio or HTTP | merge a template |

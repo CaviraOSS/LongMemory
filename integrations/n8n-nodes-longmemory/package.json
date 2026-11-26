@@ -39,6 +39,7 @@
     },
     "devDependencies": {
         "@n8n/node-cli": "0.45.5",
+        "eslint": "9.29.0",
         "typescript": "5.9.3"
     },
     "peerDependencies": {

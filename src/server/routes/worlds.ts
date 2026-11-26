@@ -16,17 +16,17 @@
 import type { route_handler } from '../app.js';
 import { api_error } from '../middleware/errors.js';
 
-export const worlds_route: route_handler = async ({ memory, params }) => {
-    const data = await memory.getWorld(params.id);
+export const worlds_route: route_handler = async ({ runtime, params }) => {
+    const data = await runtime.memory.getWorld(params.id);
     if (!data) throw new api_error(404, 'world_not_found', 'World not found');
     return { data };
 };
 
-    export const worlds_list_route: route_handler = async ({ memory, query }) => {
+    export const worlds_list_route: route_handler = async ({ runtime, query }) => {
         const zone = query.get('zone');
         if (zone && !['endocortex', 'exocortex', 'mixed'].includes(zone)) throw new api_error(400, 'validation_error', 'zone must be endocortex, exocortex, or mixed');
         const raw_limit = query.get('limit');
         const limit = raw_limit === null ? undefined : Number(raw_limit);
         if (limit !== undefined && (!Number.isInteger(limit) || limit < 1)) throw new api_error(400, 'validation_error', 'limit must be a positive integer');
-        return { data: await memory.listWorlds({ zone: zone as 'endocortex' | 'exocortex' | 'mixed' | undefined, limit }) };
+        return { data: await runtime.memory.listWorlds({ zone: zone as 'endocortex' | 'exocortex' | 'mixed' | undefined, limit }) };
     };

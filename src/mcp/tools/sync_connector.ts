@@ -3,15 +3,14 @@
 *     / /   ____  ____  ____ _/  |/  /__  ____ ___  ____  _______  __
 *    / /   / __ \/ __ \/ __ `/ /|_/ / _ \/ __ `__ \/ __ \/ ___/ / / /
 *   / /___/ /_/ / / / / /_/ / /  / /  __/ / / / / / /_/ / /  / /_/ /
-*  /_____/\____/_/ /_/\__, /_/  /_/\___/_/ /_/ /_/\____/_/   \__, /
-                     /____/                                 /____/
- *
- *  cavira oss (c) 2026  -  nullure (c) 2026
- *  ----------------------------------------------------------
- *  file  : src/mcp/tools/sync_connector.ts
- *  usage : implements the LongMemory sync connector component
- */
-
+*  /_____/\____/_/ /_/\__, /_/  /_/\___/_/ /_/ /_/ /____/_/   \__, /
+*                      /____/                                 /____/
+*
+*  cavira oss (c) 2026  -  nullure (c) 2026
+*  ----------------------------------------------------------
+*  file  : src/mcp/tools/sync_connector.ts
+*  usage : implements the LongMemory sync connector component
+*/
 
 import type { McpServer as mcp_server_sdk } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { mcp_runtime } from '../runtime.js';
@@ -25,14 +24,20 @@ export function register_sync_connector_tool(server: mcp_server_sdk, runtime: mc
         inputSchema: sync_connector_schema,
         annotations: { readOnlyHint: false, destructiveHint: true },
     }, async (input) => run_audited_tool(runtime, 'longmemory_sync_connector', input, async () => {
-        assert_write_allowed(runtime.access, 'longmemory_sync_connector');
-        const project_id = resolve_project(runtime.access, input.project_id);
+        const space = runtime.write_scope(input.space);
+        const child = runtime.for_space(space.id);
+        assert_write_allowed(child.access, 'longmemory_sync_connector');
+        const project_id = resolve_project(child.access, input.project_id);
         if (!project_id) throw new Error('project_id is required for connector sync');
-        const manager = await runtime.project(project_id);
+        const manager = await child.project(project_id, { create: true });
         const project = manager.getProject(project_id);
         if (!project.linked_sources.some((source) => source.connector_id === input.connector_id)) {
             await manager.linkSourceToProject(project_id, { connector_id: input.connector_id });
         }
-        return manager.syncProjectSource(project_id, input.connector_id, { dry_run: input.dry_run });
+        return {
+            ...await manager.syncProjectSource(project_id, input.connector_id, { dry_run: input.dry_run }),
+            space: space.id,
+            space_label: space.label,
+        };
     }));
 }

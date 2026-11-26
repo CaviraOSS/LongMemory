@@ -13,6 +13,8 @@
  */
 
 
+import { control_error } from '../../control/errors.js';
+
 export class api_error extends Error {
     constructor(
         readonly status: number,
@@ -30,6 +32,9 @@ export type clean_api_error = {
 };
 
 export function clean_error(error: unknown): clean_api_error {
+    if (error instanceof control_error) {
+        return { status: error.status, body: { code: error.code, message: error.message } };
+    }
     if (error instanceof api_error) {
         return {
             status: error.status,

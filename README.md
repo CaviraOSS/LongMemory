@@ -226,34 +226,93 @@ Strict recall applies temporal, contradiction, contract, confidence, and groundi
 
 ---
 
-## 6. MCP and Agent Integrations
+## 6. MCP and Agent Integrations — Make Every Tool Remember
 
-Start local stdio MCP:
+LongMemory connects to your entire AI stack through **Model Context Protocol (MCP)**, the open standard for agent-tool communication. Every integration runs the same governed memory engine — your decisions, code facts, and project history are consistent whether you're in VS Code, Claude, Codex, or an automated pipeline.
+
+### Quick Start: Local stdio (no server needed)
 
 ```bash
 longmemory mcp --db .longmemory/project.db --project current
 ```
 
-Expose authenticated Streamable HTTP MCP:
+This runs entirely in-process. Point any MCP-compatible host at this command and memory works immediately.
+
+### Quick Start: Team Server (shared memory)
 
 ```bash
-LONGMEMORY_API_KEY=change-me longmemory serve --mcp-http
+# 1. Start the server
+longmemory serve --mcp-http
+
+# 2. Configure your client once
+longmemory auth:login --server http://127.0.0.1:7331 --token-file ~/my.token --space team:core
+
+# 3. Every host reads the same memory
 ```
 
-LongMemory exposes 13 high-level governed tools plus readable resources and agent workflow prompts. Tool arguments cannot override server-bound runtime identity.
+---
 
-Installable integrations include:
+### Integration Catalog
 
-- Claude Code plugin
-- Codex and ChatGPT desktop plugin
-- Gemini CLI extension
-- Agent Plugins 1.0 bundle for OpenClaw and compatible hosts
-- n8n community node usable as an AI Agent tool
-- Cline, Continue, and LibreChat configuration packs
-- Dify and Flowise native MCP setup
-- CrewAI, AutoGen, LangGraph/LangChain, OpenAI Agents SDK, and PydanticAI examples
+| Category | Integration | Install | What Changes In Your Day |
+|----------|-------------|---------|--------------------------|
+| **AI Assistants** | [Claude Code](integrations/claude-code-longmemory) | `claude --plugin-dir ./integrations/claude-code-longmemory` | Claude recalls project decisions, architecture, and past incidents automatically. No more re-explaining context. |
+| | [Codex / ChatGPT Desktop](integrations/codex-longmemory) | `codex plugin marketplace add .` then install from Plugins Directory | ChatGPT remembers your codebase conventions, rollback procedures, and team preferences across sessions. |
+| | [Gemini CLI](integrations/gemini-cli-longmemory) | `gemini extensions link ./integrations/gemini-cli-longmemory` | Gemini recalls relevant memories before every task — design docs, past bugs, migration guides. |
+| | [OpenCode](integrations/opencode-longmemory) | Add plugin path to `opencode.jsonc` | OpenCode injects a bounded project brief at the start of every new user task, cached for follow-ups. |
+| **IDEs & Editors** | [VS Code Extension](apps/vscode-extension) | `pnpm extension:package` → install `.vsix` | Activity bar browser, status bar, in-editor recall, AI change session recording (Copilot/Cursor edits → durable memories), session import from 7+ sources. |
+| | [Copilot](integrations/copilot-longmemory) | Copy `.vscode/mcp.json` to workspace or `code --add-mcp` | Copilot Chat gets project-aware context: architecture, decisions, failures, code facts — all token-bounded. |
+| | [Cursor](integrations/mcp-configs/cursor.json) | Merge into `~/.cursor/mcp.json` | Cursor's agent mode searches governed memory, not just embeddings. Finds the *right* memory with temporal and contradiction gates. |
+| | [Windsurf / Devin](integrations/windsurf-longmemory) | Merge `mcp_config.json` + copy `.windsurf/rules/` | Always-on project rule teaches Windsurf to call `longmemory_who_am_i` and `longmemory_project_context` before substantial work. |
+| | [Agent Plugins Bundle](integrations/longmemory-agent-plugin) | Install via OpenClaw, Cursor, or compatible hosts | Single portable bundle (Agent Plugins 1.0) works across Cursor, Copilot, Devin, Windsurf. Secret-free stdio MCP + shared skill. |
+| **Automation** | [n8n](integrations/n8n-nodes-longmemory) | `pnpm --dir integrations/n8n-nodes-longmemory build` | Build workflows that *remember*: ingest decisions from PRs, recall context for incident response, schedule decay maintenance. |
+| | [Cline](integrations/mcp-configs/cline.json) | Merge into Cline's MCP settings | Cline uses LongMemory tools as native capabilities — recall, ingest, project context. |
+| | [Continue](integrations/mcp-configs/continue.yaml) | Copy to `.continue/mcpServers/` | Continue agent mode searches governed memory with strict/associative/historical modes. |
+| | [LibreChat](integrations/mcp-configs/librechat.yaml) | Merge into `librechat.yaml` | Multi-user chat with shared team memory; bearer auth from host environment. |
+| **Low-Code Platforms** | [Dify](integrations/README.md#dify) | Add HTTP MCP under **Integrations → Tools → MCP** | Dify Assistants/Chatflows call LongMemory tools natively — no custom memory engine needed. |
+| | [Flowise](integrations/README.md#flowise) | Use **Custom MCP** tool | Agentflows and Assistants get temporal, governed memory with zero embedding pipeline setup. |
+| **Frameworks** | CrewAI, AutoGen, LangGraph, OpenAI Agents SDK, PydanticAI | See `integrations/frameworks/` | Native MCP clients (`MCPServerStdio`, `McpWorkbench`, `MultiServerMCPClient`) — same memory engine, framework-native ergonomics. |
+| **Custom / Remote** | Grok (xAI) | [grok-connectors.md](integrations/grok-connectors.md) | Bring-your-own-MCP connector calls LongMemory's HTTP endpoint over public internet. |
 
-See [integrations/README.md](integrations/README.md) and [docs/mcp.md](docs/mcp.md).
+---
+
+### What "Improves Daily Life" Means Concretely
+
+| Before LongMemory | After LongMemory |
+|-------------------|------------------|
+| **Re-explain context** to every new AI session | AI *already knows* project decisions, architecture, rollback procedures, incident history |
+| **Search Slack/Notion** for "how did we handle X?" | `longmemory recall "X"` — returns governed evidence with provenance, not chat logs |
+| **Forget past bugs** until they recur | `longmemory project context "current task"` — injects relevant failures, mitigations, code facts |
+| **AI suggests wrong pattern** (old convention) | Governed memory enforces *current* decisions; superseded facts are marked, not deleted |
+| **Team knowledge siloed** in individuals | Shared `team:<id>` space — all assistants, all teammates see the same durable memory |
+| **No audit trail** for why a decision was made | `longmemory explain <memory-id>` — full provenance: who, when, source, supersession chain |
+| **Memory grows unbounded** | Bounded decay, explicit reinforcement, token budgets — memory stays relevant and cheap |
+
+---
+
+### Pick Your Starting Point
+
+| You Are... | Start Here |
+|------------|------------|
+| **Solo developer, VS Code + Copilot** | [VS Code Extension](apps/vscode-extension) → `longmemory init` → `longmemory auth:login` for team memory |
+| **Team using Claude Code / Codex** | [Claude](integrations/claude-code-longmemory) or [Codex](integrations/codex-longmemory) plugins + shared server |
+| **Cursor / Windsurf user** | [Cursor config](integrations/mcp-configs/cursor.json) or [Windsurf pack](integrations/windsurf-longmemory) |
+| **Automation engineer (n8n, Dify, Flowise)** | [n8n node](integrations/n8n-nodes-longmemory) or [Dify/Flowise setup](integrations/README.md#dify) |
+| **Python framework user (LangGraph, CrewAI, AutoGen, etc.)** | [Framework examples](integrations/frameworks/) — native MCP client, 5-minute setup |
+| **Want to try without installing anything** | `npm install longmemory` → `createMemory()` in 30 seconds (Section 1) |
+
+---
+
+### All Integrations Are Secret-Free
+
+- **No tokens in config files** — credentials live only in `~/.config/longmemory/client.json` (0600) or host secret stores
+- **MCP stdio by default** — no network exposure unless you enable `--mcp-http`
+- **Governed at the engine** — project, tenant, user, team, role, agent, framework scope enforced on every tool call
+- **Auditable** — every recall/ingest emits structured JSON; dashboard shows activity, decay, timeline
+
+---
+
+See [integrations/README.md](integrations/README.md) for the complete matrix, [docs/mcp.md](docs/mcp.md) for tool details, and [docs/team-memory.md](docs/team-memory.md) for personal/team space operations.
 
 ---
 

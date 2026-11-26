@@ -22,6 +22,7 @@ export type server_config = {
     host: string;
     port: number;
     api_key: string | null;
+    control_db_path: string | null;
     mcp_http: boolean;
     max_payload_size: number;
     rate_limit: rate_limit_config;
@@ -62,6 +63,9 @@ const bool_alias = (env: NodeJS.ProcessEnv, keys: string[], fallback: boolean) =
 const loopback_hosts = new Set(['127.0.0.1', 'localhost', '::1', '::']);
 
 function require_api_key_for_exposed_binds(config: server_config): void {
+    // Control mode authenticates every request with a per-user bearer token, so the shared API key
+    // is neither required nor honored on exposed binds.
+    if (config.control_db_path) return;
     const exposed = !loopback_hosts.has(config.host) || config.mcp_http;
     if (exposed && !config.api_key) {
         throw new Error(
@@ -77,6 +81,7 @@ export function load_server_config(env: NodeJS.ProcessEnv = process.env): server
         host: first(env, 'LONGMEMORY_HOST', 'OM_HOST') || '127.0.0.1',
         port: num_alias(env, ['LONGMEMORY_PORT', 'PORT', 'OM_PORT'], 7331, 0, 65_535),
         api_key: first(env, 'LONGMEMORY_API_KEY', 'OM_API_KEY') || null,
+        control_db_path: first(env, 'LONGMEMORY_CONTROL_DB') || null,
         mcp_http: bool(env, 'LONGMEMORY_MCP_HTTP', false),
         max_payload_size: num_alias(env, ['LONGMEMORY_MAX_PAYLOAD_SIZE', 'OM_MAX_PAYLOAD_SIZE'], 1_048_576, 1_024, 1_073_741_824),
         rate_limit: {
@@ -111,6 +116,9 @@ export function load_server_config(env: NodeJS.ProcessEnv = process.env): server
             } : {}),
         },
     };
+    if (config.control_db_path && config.api_key) {
+        console.warn('[longmemory] LONGMEMORY_API_KEY is ignored in control mode; use per-user bearer tokens');
+    }
     require_api_key_for_exposed_binds(config);
     return config;
 }

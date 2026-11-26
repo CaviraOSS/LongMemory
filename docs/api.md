@@ -136,6 +136,30 @@ Historical recall uses the same endpoint:
 }
 ```
 
+## Project context
+
+```http
+POST /v1/project/context
+Content-Type: application/json
+Authorization: Bearer $LONGMEMORY_API_KEY
+```
+
+Returns the same bounded `longmemory.project-context.v1` coding brief as
+`longmemory project context`. The requested project must already exist; the
+route is read-only and never creates a project hierarchy. The API key fixes the
+server identity used for governed asset access, so callers cannot impersonate a
+different user through request fields.
+
+```json
+{
+    "task": "review the release",
+    "project_id": "current",
+    "agent": "opencode",
+    "framework": "opencode",
+    "token_budget": 2048
+}
+```
+
 ## Explain
 
 ```http

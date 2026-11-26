@@ -1,10 +1,13 @@
 {
-    "longmemory": {
-        "command": "longmemory",
-        "args": [
-            "mcp",
-            "--project",
-            "current"
-        ]
+    "mcpServers": {
+        "longmemory": {
+            "type": "stdio",
+            "command": "longmemory",
+            "args": [
+                "mcp",
+                "--project",
+                "current"
+            ]
+        }
     }
 }

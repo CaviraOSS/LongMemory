@@ -22,6 +22,7 @@ export type mcp_audit_entry = {
     tool: mcp_tool_name;
     user_id: string;
     project_id: string | null;
+    space: string;
     outcome: 'allowed' | 'denied' | 'error';
     dry_run: boolean | null;
     started_at: number;

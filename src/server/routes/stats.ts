@@ -15,4 +15,4 @@
 
 import type { route_handler } from '../app.js';
 
-export const stats_route: route_handler = async ({ memory }) => ({ data: await memory.getStats() });
+export const stats_route: route_handler = async ({ runtime }) => ({ data: await runtime.memory.getStats() });

@@ -1,0 +1,15 @@
+{
+  "name": "longmemory",
+  "description": "LongMemory plugins for coding agents",
+  "owner": {
+    "name": "CaviraOSS",
+    "url": "https://github.com/CaviraOSS"
+  },
+  "plugins": [
+    {
+      "name": "longmemory",
+      "source": "./integrations/claude-code-longmemory",
+      "description": "Durable personal and team memory for Claude Code."
+    }
+  ]
+}

@@ -17,15 +17,15 @@ import type { cli_colors } from './colors.js';
 
 export const badge_names = [
     'ACTIVE', 'STALE', 'SUPERSEDED', 'CONTRADICTED', 'GROUNDED', 'UNGROUNDED', 'STRICT', 'HISTORICAL',
-    'ASSOCIATIVE', 'WORLD', 'BLOCKED', 'DONE', 'OPEN', 'FAILED', 'SYNCED', 'DRY RUN',
+    'ASSOCIATIVE', 'WORLD', 'BLOCKED', 'DONE', 'OPEN', 'FAILED', 'SYNCED', 'DRY RUN', 'DISABLED', 'REVOKED', 'EXPIRED',
 ] as const;
 export type badge_name = typeof badge_names[number];
 
 export function badge(name: badge_name, human: boolean, colors: cli_colors): string {
     if (!human) return name;
     const paint = name === 'ACTIVE' || name === 'DONE' || name === 'SYNCED' ? colors.success
-        : name === 'FAILED' || name === 'CONTRADICTED' || name === 'BLOCKED' ? colors.danger
-            : name === 'STALE' || name === 'UNGROUNDED' || name === 'DRY RUN' ? colors.warning
+        : name === 'FAILED' || name === 'CONTRADICTED' || name === 'BLOCKED' || name === 'DISABLED' || name === 'REVOKED' ? colors.danger
+            : name === 'STALE' || name === 'UNGROUNDED' || name === 'DRY RUN' || name === 'EXPIRED' ? colors.warning
                 : name === 'ASSOCIATIVE' ? colors.associative
                     : name === 'WORLD' || name === 'GROUNDED' ? colors.world_grounded
                         : name === 'STRICT' ? colors.strict

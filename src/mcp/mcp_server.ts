@@ -45,6 +45,8 @@ import { register_manage_skill_tool } from './tools/manage_skill.js';
 import { register_code_graph_tool } from './tools/code_graph.js';
 import { register_asset_catalog_tool } from './tools/asset_catalog.js';
 import { register_manage_asset_tool } from './tools/manage_asset.js';
+import { register_who_am_i_tool } from './tools/who_am_i.js';
+import { register_list_spaces_tool } from './tools/list_spaces.js';
 
 export const mcp_server_name = 'longmemory-hydrograph';
 export const mcp_server_version = '0.0.0-phase.27';
@@ -53,6 +55,8 @@ export type mcp_server_config = mcp_runtime_config & { runtime?: mcp_runtime };
 export type longmemory_mcp = { server: mcp_server_sdk; runtime: mcp_runtime };
 
 const tools = {
+    longmemory_who_am_i: register_who_am_i_tool,
+    longmemory_list_spaces: register_list_spaces_tool,
     longmemory_project_context: register_project_context_tool,
     longmemory_recall: register_recall_tool,
     longmemory_ingest: register_ingest_tool,

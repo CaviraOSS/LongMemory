@@ -2,7 +2,7 @@
     "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
     "name": "longmemory",
     "displayName": "LongMemory",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Durable project memory, recall, decisions, tasks, and governed context for Claude Code.",
     "author": {
         "name": "CaviraOSS",

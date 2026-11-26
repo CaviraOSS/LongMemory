@@ -16,6 +16,7 @@
 import type { GateContext } from '../../core/types/recall_mode.js';
 import type { HydroNode } from '../../core/types/hydro_node.js';
 import type { World } from '../../core/types/world.js';
+import { control_error } from '../../control/errors.js';
 import type { mcp_tool_name } from './tool_allowlist.js';
 
 export type mcp_access = {
@@ -49,7 +50,9 @@ export function assert_write_allowed(access: mcp_access, tool: mcp_tool_name): v
 }
 
 export function resolve_user(access: mcp_access, requested?: string): string {
-    if (requested && requested !== access.user_id) throw new Error(`permission denied for user: ${requested}`);
+    if (requested && requested !== access.user_id) {
+        throw new control_error('identity_mismatch', 'user_id does not match the authenticated identity');
+    }
     return access.user_id;
 }
 

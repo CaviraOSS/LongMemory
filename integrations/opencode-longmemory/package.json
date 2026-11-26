@@ -1,0 +1,29 @@
+{
+    "name": "@caviraoss/opencode-longmemory",
+    "version": "0.1.0",
+    "description": "Automatic bounded LongMemory context for OpenCode.",
+    "license": "Apache-2.0",
+    "type": "module",
+    "private": true,
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "files": [
+        "src",
+        "opencode.jsonc",
+        "README.md",
+        "LICENSE"
+    ],
+    "scripts": {
+        "check": "tsc --noEmit -p tsconfig.json",
+        "test": "tsx --test test/context.test.ts"
+    },
+    "dependencies": {
+        "@opencode/plugin": "^2.2.3"
+    },
+    "devDependencies": {
+        "@types/node": "^20.19.43",
+        "tsx": "^4.23.0",
+        "typescript": "^5.9.3"
+    }
+}

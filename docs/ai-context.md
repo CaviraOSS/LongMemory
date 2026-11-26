@@ -37,6 +37,10 @@
   session IR, alongside Gemini CLI, VS Code Copilot Chat, Cline, and raw
   DeepSeek Harness logs, and imports immutable revisions into governed Chat
   Memory. Its TUI uses an original Library, Review, and Transfer utility flow.
+- The OpenCode V2 plugin resolves one bounded project brief automatically for
+  each new task, caches it across tool-loop requests, and injects escaped
+  LongMemory evidence only; local mode is CLI dry-run and shared mode uses the
+  authenticated project-context API. It never auto-ingests a transcript.
 - Selected portable conversations can become deterministic Markdown LLM-Wiki
   assets with source provenance, immutable revisions, and optional agent binding.
 - Ingestion persists canonical entity metadata and complete dated event summaries;

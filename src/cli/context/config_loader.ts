@@ -24,8 +24,8 @@ export type local_cli_config = {
     connectors?: Record<string, Record<string, unknown>>;
 };
 
-const bool_flags = new Set(['json', 'jsonl', 'pretty', 'compact', 'no-color', 'silent', 'interactive', 'dry-run', 'help', 'version', 'debug', 'mcp-http', 'read-only', 'all', 'stdin', 'force']);
-const global_flags = new Set(['db', 'project', 'user', 'json', 'jsonl', 'pretty', 'compact', 'no-color', 'silent', 'interactive', 'dry-run', 'token-budget', 'cwd', 'help', 'version', 'debug']);
+const bool_flags = new Set(['json', 'jsonl', 'pretty', 'compact', 'no-color', 'silent', 'interactive', 'dry-run', 'help', 'version', 'debug', 'mcp-http', 'read-only', 'all', 'stdin', 'force', 'adopt-default']);
+const global_flags = new Set(['db', 'project', 'user', 'control-db', 'json', 'jsonl', 'pretty', 'compact', 'no-color', 'silent', 'interactive', 'dry-run', 'token-budget', 'cwd', 'help', 'version', 'debug']);
 
 export function parse_argv(argv: string[]): parsed_cli {
     const flags = new Map<string, cli_value>();
@@ -43,7 +43,7 @@ export function parse_argv(argv: string[]): parsed_cli {
         const prior = flags.get(key);
         flags.set(key, prior === undefined ? value : Array.isArray(prior) ? [...prior, String(value)] : [String(prior), String(value)]);
     }
-    const group = ['project', 'connectors', 'agent', 'memory', 'maintenance', 'skill', 'code', 'session', 'asset'].includes(words[0]) && words[1] ? `${words.shift()}:${words.shift()}` : words.shift() ?? 'status';
+    const group = ['project', 'connectors', 'agent', 'memory', 'maintenance', 'skill', 'code', 'session', 'asset', 'auth', 'users', 'teams', 'tokens', 'spaces'].includes(words[0]) && words[1] ? `${words.shift()}:${words.shift()}` : words.shift() ?? 'status';
     return { command: group, flags, positionals: words };
 }
 
@@ -79,10 +79,12 @@ export function resolved_config(args: parsed_cli, env: NodeJS.ProcessEnv) {
     if (!Number.isInteger(budget) || budget < 64) throw new Error('--token-budget must be an integer of at least 64');
     const requested_project = flag_value(args, 'project') ?? env.LONGMEMORY_PROJECT_ID ?? local.project_id;
     const requested_db = flag_value(args, 'db') ?? env.LONGMEMORY_DB_PATH ?? local.db_path ?? '.longmemory/project.db';
+    const requested_control = flag_value(args, 'control-db') ?? env.LONGMEMORY_CONTROL_DB ?? 'longmemory-control.db';
     return {
         detected, local,
         cwd: detected.cwd,
         db_path: requested_db === ':memory:' ? requested_db : resolve(detected.root, requested_db),
+        control_db_path: requested_control === ':memory:' ? requested_control : resolve(detected.root, requested_control),
         project_id: !requested_project || requested_project === 'current' ? detected.project_id : requested_project,
         project_name: local.project_name ?? detected.project_name,
         user_id: flag_value(args, 'user') ?? env.LONGMEMORY_USER_ID ?? local.user_id ?? 'default',

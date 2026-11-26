@@ -1,0 +1,10 @@
+{
+    "$schema": "app.kilo.ai/config.json",
+    "mcp": {
+        "longmemory": {
+            "type": "local",
+            "command": ["longmemory", "mcp", "--project", "current"],
+            "enabled": true
+        }
+    }
+}

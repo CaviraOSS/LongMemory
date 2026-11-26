@@ -63,6 +63,7 @@ export async function run_audited_tool(
         runtime.audit.record({
             tool, user_id: runtime.access.user_id,
             project_id: typeof input.project_id === 'string' ? input.project_id : runtime.access.project_id,
+            space: typeof input.space === 'string' ? input.space : runtime.requested_space ?? runtime.space_id,
             outcome: 'allowed', dry_run: typeof input.dry_run === 'boolean' ? input.dry_run : null,
             started_at, completed_at, error: null,
         });
@@ -74,6 +75,7 @@ export async function run_audited_tool(
         runtime.audit.record({
             tool, user_id: runtime.access.user_id,
             project_id: typeof input.project_id === 'string' ? input.project_id : runtime.access.project_id,
+            space: typeof input.space === 'string' ? input.space : runtime.requested_space ?? runtime.space_id,
             outcome: denied ? 'denied' : 'error', dry_run: typeof input.dry_run === 'boolean' ? input.dry_run : null,
             started_at, completed_at: Date.now(), error: message,
         });

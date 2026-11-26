@@ -23,6 +23,10 @@ const states = {
     conflicts: ['No unresolved conflicts', 'Project memory is consistent.'],
     tasks: ['No open tasks', 'Record work with longmemory agent after-run'],
     decisions: ['No decisions recorded', 'Use project memory to preserve architectural choices.'],
+    users: ['No control-plane users', 'Run longmemory auth:init --user <id>'],
+    teams: ['No control-plane teams', 'Run longmemory teams:create --id <id>'],
+    tokens: ['No tokens', 'Run longmemory tokens:create --user <id> --label <label>'],
+    spaces: ['No accessible spaces', 'Check the user and team memberships.'],
 } as const;
 export type empty_state_kind = keyof typeof states;
 

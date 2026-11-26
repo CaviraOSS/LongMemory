@@ -131,3 +131,42 @@ const { server, runtime } = create_longmemory_mcp({
 
 `allowed_tools` can reduce the advertised tools. Unknown names are rejected at
 startup, and omitted tools are not registered.
+
+## Spaces
+
+Every read tool accepts an optional `space` parameter:
+
+- `personal` — the caller's private partition.
+- `team:<id>` — a shared team partition.
+- `all` — read-only aggregate of personal plus every accessible team.
+
+Every write tool accepts `personal` or `team:<id>`; `all` is rejected with `read_only`.
+
+Space selection precedence:
+1. Explicit tool argument.
+2. `X-LongMemory-Space` header (HTTP) or `LONGMEMORY_SPACE` (local).
+3. The token's default space (`personal` for legacy tokens, the configured space for team tokens).
+4. With several accessible spaces and no explicit scope, reads use `all`; single-space responses keep their shape with additive `space`/`space_label` fields.
+
+`project_context` with `all` returns per-space packets. A missing project yields `project_missing` in the packet and creates nothing.
+
+## Authentication
+
+Two authentication modes exist:
+
+### Legacy mode (single identity)
+- One `LONGMEMORY_API_KEY` (or `LONGMEMORY_TOKEN` via env).
+- All requests share the same identity.
+- No space selection; all data is in a single partition.
+
+### Control mode (per-user tokens, spaces, roles)
+- Server started with `LONGMEMORY_CONTROL_DB` pointing to a control SQLite database.
+- `longmemory auth:init` creates the first admin user and prints a token (`lm_<id>_<secret>`).
+- Users are created with `users:create`; teams with `teams:create` and `teams:add`.
+- Tokens are created with `tokens:create`, optionally written to a file with `--write`.
+- Tokens are SHA-256 hashed at rest, compared with timing-safe equality, revocable, and optionally expiring.
+- Clients configure with `auth:login --server <url> --token-file <path> [--space <space>]`, which writes a `0600` client config at `~/.config/longmemory/client.json` (directory `0700`).
+- The client config stores the normalized server URL, the token, the space (when supplied), and `project_id: null`. A server URL without a token, or a token without a server URL, is a configuration error — no fallback to local mode.
+- REST and MCP tools run with the token's identity. `POST /v1/ingest` makes `user_id` optional; when present it must equal the token user, otherwise `403 identity_mismatch`.
+- Read-only servers and `viewer` roles reject write-capable tools before any mutation.
+- `GET /v1/whoami` is available for client validation and installer checks.

@@ -18,8 +18,11 @@ import * as z from 'zod/v4';
 const optional_text = z.string().trim().min(1).optional();
 const project_id = optional_text.describe('Project scope; omitted to use the server project');
 const token_budget = z.number().int().min(64).max(32_768).optional();
+const space = z.string().trim().min(1).optional()
+    .describe('Memory space: personal, team:<id>, or all for reads');
 
 export const project_context_schema = {
+    space,
     project_id,
     cwd: optional_text,
     task: z.string().trim().min(1),
@@ -32,6 +35,7 @@ export const project_context_schema = {
 };
 
 export const match_skills_schema = {
+    space,
     project_id,
     query: z.string().trim().min(1),
     agent_id: optional_text,
@@ -39,6 +43,7 @@ export const match_skills_schema = {
 };
 
 export const manage_skill_schema = {
+    space,
     action: z.enum(['create', 'bind', 'archive']),
     project_id: z.string().trim().min(1),
     skill_id: optional_text,
@@ -54,6 +59,7 @@ export const manage_skill_schema = {
 };
 
 export const recall_schema = {
+    space,
     query: z.string().trim().min(1),
     project_id,
     user_id: optional_text,
@@ -63,6 +69,7 @@ export const recall_schema = {
 };
 
 export const ingest_schema = {
+    space,
     project_id,
     user_id: optional_text,
     text: z.string().trim().min(1),
@@ -73,6 +80,7 @@ export const ingest_schema = {
 };
 
 export const remember_decision_schema = {
+    space,
     project_id: z.string().trim().min(1),
     decision: z.string().trim().min(1),
     reason: z.string().trim().min(1),
@@ -82,6 +90,7 @@ export const remember_decision_schema = {
 };
 
 export const update_task_state_schema = {
+    space,
     project_id: z.string().trim().min(1),
     task: z.string().trim().min(1),
     status: z.enum(['open', 'blocked', 'completed', 'stale', 'active', 'resolved']),
@@ -92,23 +101,27 @@ export const update_task_state_schema = {
 };
 
 export const explain_schema = {
+    space,
     memory_id: optional_text,
     query_id: optional_text,
     include_vectors: z.boolean().optional().describe('Include raw embedding vectors in the response (default false)'),
 };
 
 export const report_conflicts_schema = {
+    space,
     project_id: z.string().trim().min(1),
     severity: z.enum(['info', 'warning', 'error', 'critical']).optional(),
 };
 
 export const sync_connector_schema = {
+    space,
     connector_id: z.string().trim().min(1),
     project_id,
     dry_run: z.boolean().optional().default(true),
 };
 
 export const code_graph_schema = {
+    space,
     action: z.enum(['search', 'callers', 'callees', 'impact']),
     project_id,
     query: optional_text,
@@ -131,12 +144,14 @@ const asset_binding = z.object({
 });
 
 export const asset_catalog_schema = {
+    space,
     action: z.enum(['list', 'get', 'loadout']), project_id, asset_id: optional_text, query: optional_text,
     agent_id: optional_text, task_id: optional_text, framework: optional_text, include_unbound: z.boolean().optional(),
     asset_types: z.array(z.enum(['chat_memory', 'skill', 'llm_wiki', 'code_graph'])).max(4).optional(), token_budget,
 };
 
 export const manage_asset_schema = {
+    space,
     action: z.enum(['register', 'govern']), project_id, asset_id: optional_text,
     type: z.enum(['chat_memory', 'skill', 'llm_wiki', 'code_graph']).optional(), name: optional_text, description: optional_text,
     source_type: optional_text, source_ref: optional_text, content_ref: optional_text,

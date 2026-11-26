@@ -14,6 +14,7 @@
 
 
 import type { cli_context, cli_io } from '../context/cli_context.js';
+import { control_error } from '../../control/errors.js';
 import { render_json } from './json.js';
 import { panel } from './panel.js';
 
@@ -35,6 +36,13 @@ export class cli_error extends Error {
 
 export const normalize_error = (error: unknown) => {
     if (error instanceof cli_error) return error;
+    if (error instanceof control_error) {
+        const exit_code = error.code === 'validation_error' || error.code === 'invalid_space' ? exit_codes.validation
+            : error.code === 'conflict' ? exit_codes.conflict
+            : error.code === 'unauthorized' || error.code === 'token_expired' || error.code === 'token_revoked' || error.code === 'space_forbidden' || error.code === 'identity_mismatch' ? exit_codes.permission
+            : exit_codes.generic;
+        return new cli_error(error.code, error.message, exit_code);
+    }
     const message = error instanceof Error ? error.message : String(error);
     if (/permission|access denied|not allowed/i.test(message)) return new cli_error('permission_denied', message, exit_codes.permission);
     if (/grounding|ungrounded/i.test(message)) return new cli_error('grounding_missing', message, exit_codes.grounding);

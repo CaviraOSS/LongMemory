@@ -14,6 +14,7 @@
 
 
 import { create_memory, type memory_explanation, type long_memory } from '../create_memory.js';
+import type { World } from '../types/world.js';
 import type { Connector, connector_config } from '../connectors/connector.js';
 import type { ConnectorRegistry } from '../connectors/connector_registry.js';
 import type { connector_sync_options, connector_sync_report } from '../connectors/connector_ingest.js';
@@ -127,6 +128,7 @@ export class project_memory {
         let worlds = await this.memory.listWorlds();
         const existing = worlds.some((world) => world.metadata.project_id === config.project_id && world.metadata.hierarchy === 'project');
         if (!existing) {
+            if (this.readonly) throw new Error(`project hierarchy does not exist and the memory is read-only: ${config.project_id}`);
             const plan: HydrographImportPlan = {
                 connector_id: `project:${config.project_id}`,
                 source_type: 'project_system',
@@ -146,38 +148,19 @@ export class project_memory {
             await this.memory.applyImportPlan(plan);
             worlds = await this.memory.listWorlds();
         }
-        const project = empty_project(config, contract, at);
-        const root = worlds.find((world) => world.metadata.project_id === config.project_id && world.metadata.hierarchy === 'project');
-        if (!root) throw new Error(`project hierarchy was not created: ${config.project_id}`);
-        const missing_kinds = project_world_kinds.filter((kind) => !worlds.some((world) => world.metadata.project_id === config.project_id && world.metadata.hierarchy === kind));
-        if (missing_kinds.length && !this.readonly) {
-            const contracts = project_contract_to_memory(contract, config.project_id);
-            await this.memory.applyImportPlan({
-                connector_id: `project:${config.project_id}`,
-                source_type: 'project_system',
-                sync_item_id: `project-upgrade:${config.project_id}:${missing_kinds.join(',')}`,
-                recorded_at: at,
-                nodes_to_create: [], edges_to_create: [], entities_to_resolve: [], grounding_refs: [], contracts: [], provenance: [],
-                worlds_to_create: missing_kinds.map((kind) => ({
-                    key: `project:${config.project_id}:${kind}`, name: kind.replace(/_/g, ' '), parent_key: null,
-                    parent_world_id: root.id, zone: kind === 'agent_sessions' ? 'endocortex' : 'mixed', contracts,
-                    metadata: { hierarchy: kind, tenant_id: config.tenant_id, organization_id: config.organization_id ?? config.tenant_id, project_id: config.project_id },
-                    created_at: at,
-                })),
-                deletion_or_supersession_actions: [], checksum: `project-upgrade:${config.project_id}:${missing_kinds.join(',')}`, warnings: [],
-            });
-            worlds = await this.memory.listWorlds();
-        }
-        project.root_world_id = root.id;
-        for (const kind of project_world_kinds) {
-            const world = worlds.find((item) => item.metadata.project_id === config.project_id && item.metadata.hierarchy === kind);
-            if (!world && !this.readonly) throw new Error(`project ${config.project_id} is missing ${kind} world`);
-            project.world_ids[kind] = world?.id ?? root.id;
-        }
-        const state = new project_state(project);
-        this.states.set(config.project_id, state);
-        await this.hydrate(state);
-        return project;
+        return this.build_state(config, contract, at, worlds, !this.readonly);
+    }
+
+    // Reads open an existing hierarchy without retaining a creation path: only createProject may
+    // apply the initial plan or upgrade worlds that a previous version did not create.
+    async openProject(config: project_config): Promise<ProjectWorld> {
+        if (this.states.has(config.project_id)) return this.states.get(config.project_id)!.project;
+        const at = config.created_at ?? Date.now();
+        const contract = { ...default_project_contract(), ...(config.contract ?? {}) };
+        const worlds = await this.memory.listWorlds();
+        const existing = worlds.some((world) => world.metadata.project_id === config.project_id && world.metadata.hierarchy === 'project');
+        if (!existing) throw new Error(`project hierarchy does not exist: ${config.project_id}`);
+        return this.build_state(config, contract, at, worlds, false);
     }
 
     getProject(project_id: string): ProjectWorld {
@@ -406,6 +389,42 @@ export class project_memory {
         const state = this.states.get(project_id);
         if (!state) throw new Error(`unknown project: ${project_id}`);
         return state;
+    }
+
+    private async build_state(config: project_config, contract: ProjectMemoryContract, at: number, worlds: World[], upgrade: boolean): Promise<ProjectWorld> {
+        const root = worlds.find((world) => world.metadata.project_id === config.project_id && world.metadata.hierarchy === 'project');
+        if (!root) throw new Error(`project hierarchy was not created: ${config.project_id}`);
+        let current = worlds;
+        const missing_kinds = project_world_kinds.filter((kind) => !current.some((world) => world.metadata.project_id === config.project_id && world.metadata.hierarchy === kind));
+        if (missing_kinds.length && upgrade) {
+            const contracts = project_contract_to_memory(contract, config.project_id);
+            await this.memory.applyImportPlan({
+                connector_id: `project:${config.project_id}`,
+                source_type: 'project_system',
+                sync_item_id: `project-upgrade:${config.project_id}:${missing_kinds.join(',')}`,
+                recorded_at: at,
+                nodes_to_create: [], edges_to_create: [], entities_to_resolve: [], grounding_refs: [], contracts: [], provenance: [],
+                worlds_to_create: missing_kinds.map((kind) => ({
+                    key: `project:${config.project_id}:${kind}`, name: kind.replace(/_/g, ' '), parent_key: null,
+                    parent_world_id: root.id, zone: kind === 'agent_sessions' ? 'endocortex' : 'mixed', contracts,
+                    metadata: { hierarchy: kind, tenant_id: config.tenant_id, organization_id: config.organization_id ?? config.tenant_id, project_id: config.project_id },
+                    created_at: at,
+                })),
+                deletion_or_supersession_actions: [], checksum: `project-upgrade:${config.project_id}:${missing_kinds.join(',')}`, warnings: [],
+            });
+            current = await this.memory.listWorlds();
+        }
+        const project = empty_project(config, contract, at);
+        project.root_world_id = root.id;
+        for (const kind of project_world_kinds) {
+            const world = current.find((item) => item.metadata.project_id === config.project_id && item.metadata.hierarchy === kind);
+            if (!world && upgrade && !this.readonly) throw new Error(`project ${config.project_id} is missing ${kind} world`);
+            project.world_ids[kind] = world?.id ?? root.id;
+        }
+        const state = new project_state(project);
+        this.states.set(config.project_id, state);
+        await this.hydrate(state);
+        return project;
     }
 
     private async hydrate(state: project_state): Promise<void> {

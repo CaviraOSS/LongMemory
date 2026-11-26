@@ -15,6 +15,7 @@
 
 import type { long_memory, recall_mode } from '../../core/create_memory.js';
 import type { project_memory } from '../../core/project/project_memory.js';
+import type { control_db } from '../../control/control_db.js';
 import { create_embedding_environment } from '../../core/embeddings/environment.js';
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -27,7 +28,7 @@ export type cli_io = { stdout(value: string): void; stderr(value: string): void;
 export type cli_command = (context: cli_context) => Promise<void>;
 
 export type cli_context = {
-    args: parsed_cli; env: NodeJS.ProcessEnv; io: cli_io; cwd: string; db_path: string; project_id: string;
+    args: parsed_cli; env: NodeJS.ProcessEnv; io: cli_io; cwd: string; db_path: string; control_db_path: string; project_id: string;
     project_name: string; user_id: string; json: boolean; human: boolean; color: boolean; colors: cli_colors;
     silent: boolean; interactive: boolean; token_budget: number; dry_run: boolean; terminal_width: number; is_tty: boolean;
     pretty: boolean; compact: boolean; debug: boolean; jsonl: boolean; exit_code: number;
@@ -101,6 +102,12 @@ export const memory_config = (context: cli_context) => {
         ...(embeddings ? { embedding_provider: embeddings.embedding_provider, multilingual_embedding_provider: embeddings.multilingual_embedding_provider, embedding_dimension: embeddings.embedding_dimension } : {}),
     };
 };
+export async function with_control<T>(context: cli_context, operation: (db: control_db) => Promise<T> | T): Promise<T> {
+    if (context.control_db_path !== ':memory:') mkdirSync(dirname(context.control_db_path), { recursive: true, mode: 0o700 });
+    const { control_db: ControlDb } = await import('../../control/control_db.js');
+    const db = new ControlDb(context.control_db_path);
+    try { return await operation(db); } finally { db.close(); }
+}
 export async function with_memory<T>(context: cli_context, operation: (memory: long_memory) => Promise<T>): Promise<T> {
     const readonly = context.dry_run && context.db_path !== ':memory:';
     if (readonly && !existsSync(context.db_path)) throw new cli_error('database_not_found', 'Dry-run reads require an existing database', exit_codes.database, { db_path: context.db_path }, 'longmemory init');

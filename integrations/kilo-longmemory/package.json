@@ -1,0 +1,28 @@
+{
+    "name": "@caviraoss/kilo-longmemory",
+    "version": "0.1.0",
+    "description": "Bounded automatic LongMemory context for Kilo Code.",
+    "license": "Apache-2.0",
+    "type": "module",
+    "private": true,
+    "exports": {
+        "./server": "./src/index.ts"
+    },
+    "files": ["src", "skills", "kilo.json", "README.md", "LICENSE"],
+    "engines": {
+        "opencode": "^7.8.0"
+    },
+    "scripts": {
+        "check": "tsc --noEmit -p tsconfig.json",
+        "test": "tsx --test test/*.test.ts"
+    },
+    "peerDependencies": {
+        "@kilocode/plugin": "^7.8.0"
+    },
+    "devDependencies": {
+        "@kilocode/plugin": "7.8.27",
+        "@types/node": "^20.19.43",
+        "tsx": "^4.23.0",
+        "typescript": "^5.9.3"
+    }
+}

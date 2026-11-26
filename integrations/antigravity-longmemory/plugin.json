@@ -1,0 +1,21 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "longmemory",
+  "displayName": "LongMemory",
+  "version": "0.2.0",
+  "description": "Durable personal and team memory for coding agents: context, recall, decisions, tasks, and governed assets.",
+  "logo": "assets/logo.svg",
+  "suggestedPrompts": [
+    "Recall what this project decided and what is still open",
+    "Remember this decision with its rationale and rejected alternatives",
+    "Update the task state with what changed and what comes next"
+  ],
+  "author": {
+    "name": "CaviraOSS",
+    "url": "https://github.com/CaviraOSS"
+  },
+  "homepage": "https://github.com/CaviraOSS/LongMemory",
+  "repository": "https://github.com/CaviraOSS/LongMemory",
+  "license": "Apache-2.0",
+  "keywords": ["memory", "mcp", "coding-agent", "context"]
+}

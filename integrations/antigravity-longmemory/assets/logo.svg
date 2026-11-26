@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="LongMemory">
+  <rect x="8" y="8" width="112" height="112" rx="24" fill="#111827"/>
+  <g transform="translate(8 8) scale(1.75)" fill="none" stroke="#38bdf8" stroke-width="4" stroke-linejoin="round">
+    <path d="M14 14h16v16H14zm20 0h16v16H34zM14 34h16v16H14zm20 0h16v16H34z"/>
+  </g>
+  <g transform="translate(8 8) scale(1.75)" stroke="#f8fafc" stroke-width="4" stroke-linecap="round">
+    <path d="M30 22h4M22 30v4m20-4v4m-12 8h4"/>
+  </g>
+</svg>

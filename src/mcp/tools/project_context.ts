@@ -1,23 +1,25 @@
 /*
 *      __                      __  ___
 *     / /   ____  ____  ____ _/  |/  /__  ____ ___  ____  _______  __
-*    / /   / __ \/ __ \/ __ `/ /|_/ / _ \/ __ `__ \/ __ \/ ___/ / / /
-*   / /___/ /_/ / / / / /_/ / /  / /  __/ / / / / / /_/ / /  / /_/ /
-*  /_____/\____/_/ /_/\__, /_/  /_/\___/_/ /_/ /_/\____/_/   \__, /
-                     /____/                                 /____/
- *
- *  cavira oss (c) 2026  -  nullure (c) 2026
- *  ----------------------------------------------------------
- *  file  : src/mcp/tools/project_context.ts
- *  usage : implements the LongMemory project context component
- */
-
+*    / /   / __ `/ __ `/ __ `/ /|_/ / _ / __ `__ / __ / ___/ / / /
+*   / /___/ /_/ / / / /_/ / / /  / /  __/ / / / / / /_/ / /  / /_/ /
+*  /_____/\____/_/ /_/\__, /_/  /_/\___/_/ /_/ /_/ /____/_/   \__, /
+*                      /____/                                 /____/
+*
+*  cavira oss (c) 2022  -  nullure (c) 2026
+*  ----------------------------------------------------------
+*  file  : src/mcp/tools/project_context.ts
+*  usage : implements the LongMemory project context component
+*/
 
 import type { McpServer as mcp_server_sdk } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { mcp_runtime } from '../runtime.js';
 import { project_context_schema } from '../schemas/tool_schemas.js';
 import { resolve_agent, resolve_framework, resolve_project } from '../security/permissions.js';
 import { run_audited_tool } from './common.js';
+import { read_scopes, scoped_project, per_space_budget } from './read_scope.js';
+import { empty_project_context, project_context_view } from '../../core/project/project_context_result.js';
+import type { project_context_packet } from '../../core/project/project_context.js';
 
 export function register_project_context_tool(server: mcp_server_sdk, runtime: mcp_runtime): void {
     server.registerTool('longmemory_project_context', {
@@ -25,31 +27,66 @@ export function register_project_context_tool(server: mcp_server_sdk, runtime: m
         inputSchema: project_context_schema,
         annotations: { readOnlyHint: true, idempotentHint: true },
     }, async (input) => run_audited_tool(runtime, 'longmemory_project_context', input, async () => {
-        const project_id = runtime.resolve_project_id(resolve_project(runtime.access, input.project_id));
-        const manager = await runtime.project(project_id);
-        const packet = await manager.getProjectContext(
-            project_id, `${input.mode}: ${input.task}`, input.token_budget,
-            resolve_agent(runtime.access, input.agent_id), resolve_framework(runtime.access, input.framework),
-            { user_id: runtime.access.user_id, team_ids: [...runtime.access.team_ids], roles: [...runtime.access.roles], task_id: input.task_id },
+        const scopes = read_scopes(runtime, input.space);
+        const budget = input.token_budget ?? 2048;
+        const task = `${input.mode}: ${input.task}`;
+        const view = (project_id: string, packet: project_context_packet, space: { id: string; label: string }, child: mcp_runtime) => project_context_view(project_id, task, packet, {
+            space: space.id,
+            space_label: space.label,
+            // The MCP tool has always let callers narrow relevant files and report the request's
+            // working directory; keep that behavior while sharing the REST view shape.
+            relevant_files: input.files?.length
+                ? packet.relevant_files.filter((file) => input.files!.some((path) => file.path === path || file.path.endsWith(path)))
+                : packet.relevant_files,
+            debug_trace: { ...packet.debug_trace, mode: input.mode, cwd: input.cwd ?? child.cwd },
+        });
+
+        if (scopes === 'all') {
+            const scoped_budget = per_space_budget(budget, runtime.spaces.length);
+            const spaces = [];
+            for (const space of runtime.spaces) {
+                const child = runtime.for_space(space.id);
+                const tags = { space: space.id, space_label: space.label };
+                try {
+                    const project_id = child.resolve_project_id(resolve_project(child.access, input.project_id));
+                    const project = await scoped_project(child, project_id);
+                    if (project === null) {
+                        spaces.push(empty_project_context(project_id, task, scoped_budget, { ...tags, project_missing: true }));
+                        continue;
+                    }
+                    const packet = await project.getProjectContext(
+                        project_id, task, scoped_budget,
+                        resolve_agent(child.access, input.agent_id), resolve_framework(child.access, input.framework),
+                        { user_id: child.access.user_id, team_ids: [...child.access.team_ids], roles: [...child.access.roles], task_id: input.task_id },
+                    );
+                    spaces.push(view(project_id, packet, space, child));
+                } catch (error) {
+                    spaces.push({
+                        ok: false, ...tags, project_missing: false, task,
+                        error: error instanceof Error ? error.message : String(error),
+                    });
+                }
+            }
+            return { space: 'all', spaces };
+        }
+
+        const space = scopes[0];
+        const child = runtime.for_space(space.id);
+        const project_id = child.resolve_project_id(resolve_project(child.access, input.project_id));
+        const project = await scoped_project(child, project_id);
+        if (project === null) {
+            return empty_project_context(project_id, task, budget, {
+                space: space.id,
+                space_label: space.label,
+                project_missing: true,
+            });
+        }
+
+        const packet = await project.getProjectContext(
+            project_id, task, budget,
+            resolve_agent(child.access, input.agent_id), resolve_framework(child.access, input.framework),
+            { user_id: child.access.user_id, team_ids: [...child.access.team_ids], roles: [...child.access.roles], task_id: input.task_id },
         );
-        const relevant_files = input.files?.length
-            ? packet.relevant_files.filter((file) => input.files!.some((path) => file.path === path || file.path.endsWith(path)))
-            : packet.relevant_files;
-        return {
-            project_summary: packet.project_summary,
-            current_goal: packet.current_goal,
-            hard_constraints: packet.hard_constraints,
-            relevant_architecture: packet.relevant_architecture,
-            relevant_files,
-            active_decisions: packet.active_decisions,
-            open_tasks: packet.open_tasks,
-            known_failures: packet.known_failures,
-            matched_skills: packet.matched_skills,
-            asset_loadout: packet.asset_loadout,
-            conflicts: packet.contradictions,
-            suggested_next_steps: packet.suggested_next_steps,
-            citations: packet.citations,
-            debug_trace: { ...packet.debug_trace, mode: input.mode, cwd: input.cwd ?? runtime.cwd },
-        };
+        return view(project_id, packet, space, child);
     }));
 }
